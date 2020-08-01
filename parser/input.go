@@ -1,7 +1,6 @@
 package parser
 
 type Input interface {
-	Finished() bool
 	CurrentRune() rune
 	RemainingInput() Input
 }
@@ -17,10 +16,6 @@ type StringInput struct {
 
 func (i StringInput) String() string {
 	return string(i.text[i.index:])
-}
-
-func (i StringInput) Finished() bool {
-	return i.index >= len(i.text)
 }
 
 func (i StringInput) RemainingInput() Input {

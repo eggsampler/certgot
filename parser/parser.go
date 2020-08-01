@@ -55,6 +55,9 @@ func And(parsers ...Parser) Parser {
 			Remaining: input,
 		}
 		for _, currentParser := range parsers {
+			if finalResult.Remaining == nil {
+				return Result{Success: false, Remaining: input}
+			}
 			currentResult := currentParser(finalResult.Remaining)
 			if !currentResult.Success {
 				return Result{Success: false, Remaining: input}
@@ -66,12 +69,10 @@ func And(parsers ...Parser) Parser {
 	}
 }
 
-func Not(parser Parser) Parser {
+func Optional(parser Parser) Parser {
 	return func(input Input) Result {
 		result := parser(input)
-		return Result{
-			Success:   !result.Success,
-			Remaining: input,
-		}
+		result.Success = true
+		return result
 	}
 }

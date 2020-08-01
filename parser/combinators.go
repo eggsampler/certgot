@@ -17,9 +17,15 @@ func Expect(f ExpectFunc) Parser {
 	}
 }
 
-func ExpectRune(c rune) Parser {
+func Rune(c rune) Parser {
 	return Expect(func(r rune) bool {
 		return c == r
+	})
+}
+
+func NotRune(c rune) Parser {
+	return Expect(func(r rune) bool {
+		return c != r
 	})
 }
 
@@ -32,12 +38,12 @@ func Number() Parser {
 }
 
 func Space() Parser {
-	return ExpectRune(' ')
+	return Rune(' ')
 }
 
 func EOF() Parser {
 	return func(input Input) Result {
-		if input == nil || input.Finished() {
+		if input == nil {
 			return Result{
 				Success: true,
 			}
@@ -48,7 +54,6 @@ func EOF() Parser {
 
 func EOL() Parser {
 	return Or(
-		And(ExpectRune('\r'), ExpectRune('\n')),
-		ExpectRune('\n'),
-		EOF())
+		And(Rune('\r'), Rune('\n')),
+		Rune('\n'))
 }

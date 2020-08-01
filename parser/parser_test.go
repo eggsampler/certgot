@@ -180,23 +180,23 @@ func TestAnd(t *testing.T) {
 	runTests(testList, t)
 }
 
-func TestNot(t *testing.T) {
+func TestOptional(t *testing.T) {
 	testList := []parserTest{
 		{
-			testName:  "not success",
-			parser:    Not(Letter()),
+			testName:  "optional 1",
+			parser:    Optional(Letter()),
 			input:     NewStringInput("1"),
 			success:   true,
 			resultStr: "",
 			remainStr: "1",
 		},
 		{
-			testName:  "not fail",
-			parser:    Not(Letter()),
+			testName:  "optional 2",
+			parser:    Optional(Letter()),
 			input:     NewStringInput("a"),
-			success:   false,
-			resultStr: "",
-			remainStr: "a",
+			success:   true,
+			resultStr: "a",
+			remainStr: "",
 		},
 	}
 
