@@ -64,7 +64,7 @@ func setupArguments(app *cli.App) {
 		},
 
 		{
-			Name: "email",
+			Name: constants.ARG_EMAIL,
 			DefaultValue: &cli.AskValue{
 				Query:  "Enter email address (used for urgent renewal and security notices)",
 				Cancel: "An e-mail address or --register-unsafely-without-email must be provided.",
@@ -72,22 +72,22 @@ func setupArguments(app *cli.App) {
 			TakesValue: true,
 		},
 		{
-			Name:         "register-unsafely-without-email",
+			Name:         constants.ARG_REGISTER_UNSAFELY_WITHOUT_EMAIL,
 			DefaultValue: &cli.SimpleValue{false},
 			TakesValue:   true,
 		},
 
 		{
-			Name:         "standalone",
+			Name:         constants.ARG_STANDALONE,
 			DefaultValue: &cli.SimpleValue{false},
 		},
 		{
-			Name:         "webroot",
+			Name:         constants.ARG_WEBROOT,
 			DefaultValue: &cli.SimpleValue{false},
 		},
 		{
-			Name:     "authenticator",
-			AltNames: []string{"a"},
+			Name:     constants.ARG_AUTHENTICATOR,
+			AltNames: []string{constants.ARG_AUTHENTICATOR_SHORT},
 			DefaultValue: &cli.ListValue{
 				Query:  "How would you like to authenticate with the ACME CA?",
 				Cancel: "", // TODO: something here
