@@ -171,11 +171,16 @@ func TestParse(t *testing.T) {
 		},
 		{
 			testName:   "double quote brace",
-			input:      `hello "foo;bar" world;`,
+			input:      `hello "foo{bar" world;`,
 			expectsDir: true,
 			equalCheck: []interface{}{
 				SimpleDirective{Name: "hello", Parameter: `"foo{bar" world`},
 			},
+		},
+		{
+			testName:   "edge case",
+			input:      `add_header  Cache-Control  'public, must-revalidate, proxy-revalidate' "test,;{}" foo;`,
+			expectsDir: true,
 		},
 	}
 
@@ -202,26 +207,102 @@ func TestParse(t *testing.T) {
 
 func TestParseFile(t *testing.T) {
 	fileList := []struct {
-		fileName string
-		hasError bool
+		fileName   string
+		hasError   bool
+		expectsDir bool
+		equalCheck []interface{}
 	}{
-		{
-			fileName: filepath.Join("testdata", "nginx.conf"),
-		},
 		{
 			fileName: filepath.Join("testdata", "broken.conf"),
 			hasError: true,
 		},
 		{
-			fileName: filepath.Join("testdata", "comment_in_file.conf"),
+			fileName:   filepath.Join("testdata", "comment_in_file.conf"),
+			expectsDir: true,
+			equalCheck: []interface{}{
+				CommentDirective("a comment inside a file"),
+			},
 		},
 		{
-			fileName: filepath.Join("testdata", "edge_cases.conf"),
+			fileName:   filepath.Join("testdata", "edge_cases.conf"),
+			expectsDir: true,
+			equalCheck: []interface{}{
+				CommentDirective("This is not a valid nginx config file but it tests edge cases in valid nginx syntax"),
+				BlockDirective{
+					Name: "server",
+					Children: []interface{}{
+						SimpleDirective{
+							Name:      "server_name",
+							Parameter: "simple",
+						},
+					},
+				},
+				BlockDirective{
+					Name: "server",
+					Children: []interface{}{
+						SimpleDirective{
+							Name:      "server_name",
+							Parameter: "with.if",
+						},
+						BlockDirective{
+							Name:      "location",
+							Parameter: "~ ^/services/.+$",
+							Children: []interface{}{
+								BlockDirective{
+									Name:      "if",
+									Parameter: "($request_filename ~* \\.(ttf|woff)$)",
+									Children: []interface{}{
+										SimpleDirective{
+											Name:      "add_header",
+											Parameter: `Access-Control-Allow-Origin "*"`,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				BlockDirective{
+					Name: "server",
+					Children: []interface{}{
+						SimpleDirective{
+							Name:      "server_name",
+							Parameter: "with.complicated.headers",
+						},
+						BlockDirective{
+							Name:      "location",
+							Parameter: "~* \\.(?:gif|jpe?g|png)$",
+							Children: []interface{}{
+								SimpleDirective{
+									Name:      "add_header",
+									Parameter: "Pragma public",
+								},
+								SimpleDirective{
+									Name:      "add_header",
+									Parameter: `Cache-Control  'public, must-revalidate, proxy-revalidate' "test,;{}" foo`,
+								},
+								SimpleDirective{
+									Name:      "blah",
+									Parameter: `"hello;world"`,
+								},
+								SimpleDirective{
+									Name:      "try_files",
+									Parameter: "$uri @rewrites",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			fileName:   filepath.Join("testdata", "nginx.conf"),
+			expectsDir: true,
 		},
 	}
 
 	for _, currentTest := range fileList {
-		out, err := ParseFile(currentTest.fileName)
+		output, err := ParseFile(currentTest.fileName)
 		if currentTest.hasError == (err == nil) {
 			if err != nil {
 				input, err2 := ioutil.ReadFile(currentTest.fileName)
@@ -231,7 +312,17 @@ func TestParseFile(t *testing.T) {
 				fmt.Println(caretError(err, string(input)))
 			}
 			t.Fatalf("test %q: expected error %v, got: %v\n output: %+v",
-				currentTest.fileName, currentTest.hasError, err, out)
+				currentTest.fileName, currentTest.hasError, err, output)
+		}
+		directives, ok := output.([]interface{})
+		if currentTest.expectsDir != ok {
+			t.Fatalf("test %q: expects directive %t, got: %t", currentTest.fileName, currentTest.expectsDir, ok)
+		}
+		if currentTest.equalCheck != nil {
+			if !reflect.DeepEqual(directives, currentTest.equalCheck) {
+				t.Fatalf("test %q: directive mismatch\n expects: %+v\n got: %+v",
+					currentTest.fileName, currentTest.equalCheck, directives)
+			}
 		}
 	}
 }

@@ -17,40 +17,46 @@ CommentDirective "Comment" = _ '#' comment:CommentText
     return CommentDirective(strings.TrimSpace(comment.(string))), nil
 }
 
-BlockDirective "Block Directive" = _ namez:Name _ paramz:(Parameter)? _ '{' _ dirz:Directives _ '}' _
+BlockDirective "Block Directive" = _ name:DirectiveName param:DirectiveParameter? _ '{' _ dirz:Directives _ '}' _
 {
-    param, _ := paramz.(string)
+    nameStr, _ := name.(string)
+    paramStr, _ := param.(string)
     dirs, _ := dirz.([]interface{})
     return BlockDirective{
-        Name: namez.(string),
-        Parameter: param,
+        Name: nameStr,
+        Parameter: strings.TrimSpace(paramStr),
         Children: dirs,
     }, nil
 }
 
-SimpleDirective "Simple Directive" = _ namez:Name _ paramz:(Parameter)? _ ';' _
+SimpleDirective "Simple Directive" = _ name:DirectiveName param:DirectiveParameter? _ ';' _
 {
-    param, _ := paramz.(string)
+    nameStr, _ := name.(string)
+    paramStr, _ := param.(string)
     return SimpleDirective{
-        Name: namez.(string),
-        Parameter: param,
+        Name: nameStr,
+        Parameter: strings.TrimSpace(paramStr),
     }, nil
 }
 
-CommentText = ( ![\r\n] . )* {
+CommentText = ( ![\r\n] . )*
+{
     return string(c.text), nil
 }
 
+DirectiveName = [a-z_]+
+{
+    return string(c.text),nil
+}
+
+DirectiveParameter = __ ( EscapedChar / SingleQuotedString / DoubleQuotedString / !(_ [;{]) . )+
+{
+    return string(c.text),nil
+}
+
+__ "space" = [ \t]+
 _ "whitespace" = [ \t\r\n]*
-
-Name "Directive Name" = [a-z_]+
-{
-    return string(c.text), nil
-}
-
-Parameter = ( "\\{" / "\\;" / !(_ [;{]) . )+
-{
-    return string(c.text), nil
-}
-
+SingleQuotedString = `'` ( EscapedChar / (!`'` .) )* `'`
+DoubleQuotedString = `"` ( EscapedChar / (!`"` .) )* `"`
+EscapedChar = `\` .
 EOF = !.
