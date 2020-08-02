@@ -1,0 +1,60 @@
+{
+package nginx
+
+func newDirective(name string, hasParam bool, param string, hasDirs bool, dirs interface{}) Directive {
+    directive := Directive{
+        Name: name,
+    }
+
+    if hasParam {
+        directive.HasParameter = true
+        directive.Parameter = param
+    }
+
+    if hasDirs {
+        directive.HasDirectives = true
+        if dirs != nil {
+            for _, vv := range dirs.([]interface{}) {
+                switch d := vv.(type) {
+                case Directive:
+                    directive.Directives = append(directive.Directives, d)
+                }
+            }
+        }
+    }
+
+    return directive
+}
+}
+
+MainDirective = _ dirz:Directives EOF {
+    return newDirective("main", false, "", true, dirz), nil
+}
+
+Directives = (BlockDirective / SimpleDirective)*
+
+BlockDirective "Block Directive" = namez:Name _ paramz:(Parameter)? _ '{' _ dirz:Directives _ '}' _
+{
+    param, ok := paramz.(string)
+    return newDirective(namez.(string), ok, param, true, dirz), nil
+}
+
+SimpleDirective "Simple Directive" = namez:Name _ paramz:(Parameter)? _ ';' _
+{
+    param, ok := paramz.(string)
+    return newDirective(namez.(string), ok, param, false, nil), nil
+}
+
+_ "whitespace" = [ \t\r\n]*
+
+Name = [a-z_]+
+{
+    return string(c.text), nil
+}
+
+Parameter = ( "\\{" / "\\;" / !(_ [;{]) . )+
+{
+    return string(c.text), nil
+}
+
+EOF = !.
