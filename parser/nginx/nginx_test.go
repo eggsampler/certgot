@@ -2,6 +2,8 @@ package nginx
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -31,7 +33,7 @@ func TestParse(t *testing.T) {
 		fileName   string
 		hasError   bool
 		expectsDir bool
-		checkFunc  func(Directive) error
+		equalCheck []interface{}
 	}{
 		{
 			testName:   "no input",
@@ -46,18 +48,8 @@ func TestParse(t *testing.T) {
 			testName:   "simplest directive",
 			input:      "hello;",
 			expectsDir: true,
-			checkFunc: func(d Directive) error {
-				od := Directive{
-					Name:          "main",
-					HasDirectives: true,
-					Directives: []Directive{
-						{Name: "hello"},
-					},
-				}
-				if !reflect.DeepEqual(d, od) {
-					return fmt.Errorf("directive mismatch\n expects: %+v\n got: %+v", od, d)
-				}
-				return nil
+			equalCheck: []interface{}{
+				SimpleDirective{Name: "hello"},
 			},
 		},
 		{
@@ -66,7 +58,7 @@ func TestParse(t *testing.T) {
 			expectsDir: true,
 		},
 		{
-			testName:   "simplest directive spces",
+			testName:   "simplest directive spaces",
 			input:      " hello_world ; ",
 			expectsDir: true,
 		},
@@ -115,6 +107,76 @@ func TestParse(t *testing.T) {
 			input:      exampleConfig,
 			expectsDir: true,
 		},
+		{
+			testName:   "comment",
+			input:      "# hello world",
+			expectsDir: true,
+			equalCheck: []interface{}{
+				CommentDirective("hello world"),
+			},
+		},
+		{
+			testName:   "comment spaced",
+			input:      " # hello world ",
+			expectsDir: true,
+		},
+		{
+			testName:   "no comment",
+			input:      "#",
+			expectsDir: true,
+		},
+		{
+			testName:   "no comment spaces 1",
+			input:      " #",
+			expectsDir: true,
+		},
+		{
+			testName:   "no comment spaces 2",
+			input:      " # ",
+			expectsDir: true,
+		},
+		{
+			testName:   "no comment next line 1",
+			input:      " # \r\n hello world;",
+			expectsDir: true,
+		},
+		{
+			testName:   "no comment next line 2",
+			input:      " # \n hello world;",
+			expectsDir: true,
+		},
+		{
+			testName:   "single quote semi colon",
+			input:      "hello 'foo;bar' world;",
+			expectsDir: true,
+			equalCheck: []interface{}{
+				SimpleDirective{Name: "hello", Parameter: `'foo;bar' world`},
+			},
+		},
+		{
+			testName:   "double quote semi colon",
+			input:      `hello "foo;bar" world;`,
+			expectsDir: true,
+			equalCheck: []interface{}{
+				SimpleDirective{Name: "hello", Parameter: `"foo;bar" world`},
+			},
+		},
+		{
+			testName:   "single quote brace",
+			input:      "hello 'foo{bar' world;",
+			expectsDir: true,
+			equalCheck: []interface{}{
+				SimpleDirective{Name: "hello", Parameter: `'foo{bar' world`},
+			},
+		},
+		{
+			testName:   "double quote brace",
+			input:      `hello "foo;bar" world;`,
+			expectsDir: true,
+			equalCheck: []interface{}{
+				SimpleDirective{Name: "hello", Parameter: `"foo{bar" world`},
+			},
+		},
 	}
 
 	for _, currentTest := range testList {
@@ -123,16 +185,53 @@ func TestParse(t *testing.T) {
 			if err != nil {
 				fmt.Println(caretError(err, currentTest.input))
 			}
-			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
+			t.Fatalf("test %q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
 		}
-		directive, ok := output.(Directive)
+		directives, ok := output.([]interface{})
 		if currentTest.expectsDir != ok {
 			t.Fatalf("test %q: expects directive %t, got: %t", currentTest.testName, currentTest.expectsDir, ok)
 		}
-		if currentTest.checkFunc != nil {
-			if err := currentTest.checkFunc(directive); err != nil {
-				t.Fatalf("test %q: check: %v", currentTest.testName, err)
+		if currentTest.equalCheck != nil {
+			if !reflect.DeepEqual(directives, currentTest.equalCheck) {
+				t.Fatalf("test %q: directive mismatch\n expects: %+v\n got: %+v",
+					currentTest.testName, currentTest.equalCheck, directives)
 			}
+		}
+	}
+}
+
+func TestParseFile(t *testing.T) {
+	fileList := []struct {
+		fileName string
+		hasError bool
+	}{
+		{
+			fileName: filepath.Join("testdata", "nginx.conf"),
+		},
+		{
+			fileName: filepath.Join("testdata", "broken.conf"),
+			hasError: true,
+		},
+		{
+			fileName: filepath.Join("testdata", "comment_in_file.conf"),
+		},
+		{
+			fileName: filepath.Join("testdata", "edge_cases.conf"),
+		},
+	}
+
+	for _, currentTest := range fileList {
+		out, err := ParseFile(currentTest.fileName)
+		if currentTest.hasError == (err == nil) {
+			if err != nil {
+				input, err2 := ioutil.ReadFile(currentTest.fileName)
+				if err2 != nil {
+					panic(err)
+				}
+				fmt.Println(caretError(err, string(input)))
+			}
+			t.Fatalf("test %q: expected error %v, got: %v\n output: %+v",
+				currentTest.fileName, currentTest.hasError, err, out)
 		}
 	}
 }

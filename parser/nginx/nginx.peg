@@ -1,53 +1,49 @@
 {
 package nginx
-
-func newDirective(name string, hasParam bool, param string, hasDirs bool, dirs interface{}) Directive {
-    directive := Directive{
-        Name: name,
-    }
-
-    if hasParam {
-        directive.HasParameter = true
-        directive.Parameter = param
-    }
-
-    if hasDirs {
-        directive.HasDirectives = true
-        if dirs != nil {
-            for _, vv := range dirs.([]interface{}) {
-                switch d := vv.(type) {
-                case Directive:
-                    directive.Directives = append(directive.Directives, d)
-                }
-            }
-        }
-    }
-
-    return directive
-}
 }
 
-MainDirective = _ dirz:Directives EOF {
-    return newDirective("main", false, "", true, dirz), nil
-}
-
-Directives = (BlockDirective / SimpleDirective)*
-
-BlockDirective "Block Directive" = namez:Name _ paramz:(Parameter)? _ '{' _ dirz:Directives _ '}' _
+MainDirective = val:Directives EOF
 {
-    param, ok := paramz.(string)
-    return newDirective(namez.(string), ok, param, true, dirz), nil
+    return val, nil
 }
 
-SimpleDirective "Simple Directive" = namez:Name _ paramz:(Parameter)? _ ';' _
+Directives = val:( CommentDirective / BlockDirective / SimpleDirective )*
 {
-    param, ok := paramz.(string)
-    return newDirective(namez.(string), ok, param, false, nil), nil
+    return val, nil
+}
+
+CommentDirective "Comment" = _ '#' comment:CommentText
+{
+    return CommentDirective(strings.TrimSpace(comment.(string))), nil
+}
+
+BlockDirective "Block Directive" = _ namez:Name _ paramz:(Parameter)? _ '{' _ dirz:Directives _ '}' _
+{
+    param, _ := paramz.(string)
+    dirs, _ := dirz.([]interface{})
+    return BlockDirective{
+        Name: namez.(string),
+        Parameter: param,
+        Children: dirs,
+    }, nil
+}
+
+SimpleDirective "Simple Directive" = _ namez:Name _ paramz:(Parameter)? _ ';' _
+{
+    param, _ := paramz.(string)
+    return SimpleDirective{
+        Name: namez.(string),
+        Parameter: param,
+    }, nil
+}
+
+CommentText = ( ![\r\n] . )* {
+    return string(c.text), nil
 }
 
 _ "whitespace" = [ \t\r\n]*
 
-Name = [a-z_]+
+Name "Directive Name" = [a-z_]+
 {
     return string(c.text), nil
 }

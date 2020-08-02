@@ -2,12 +2,17 @@
 
 package nginx
 
-type Directive struct {
-	Name          string
-	HasParameter  bool
-	Parameter     string
-	HasDirectives bool
-	Directives    []Directive
+type SimpleDirective struct {
+	Name      string
+	Parameter string
+}
+
+type CommentDirective string
+
+type BlockDirective struct {
+	Name      string
+	Parameter string
+	Children  []interface{}
 }
 
 // TODO: stringer interface which also indents?
