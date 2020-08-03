@@ -3,16 +3,16 @@
 package nginx
 
 type SimpleDirective struct {
-	Name      string
-	Parameter string
+	Name       string
+	Parameters []string
 }
 
 type CommentDirective string
 
 type BlockDirective struct {
-	Name      string
-	Parameter string
-	Children  []interface{}
+	Name       string
+	Parameters []string
+	Children   []interface{}
 }
 
 // TODO: stringer interface which also indents?

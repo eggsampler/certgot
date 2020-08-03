@@ -68,6 +68,11 @@ func TestParse(t *testing.T) {
 			expectsDir: true,
 		},
 		{
+			testName:   "simple directive with parameters",
+			input:      "hello 'foo bar' world;",
+			expectsDir: true,
+		},
+		{
 			testName:   "simple directive with parameter and spaces",
 			input:      " hello_world value ; ",
 			expectsDir: true,
@@ -150,7 +155,7 @@ func TestParse(t *testing.T) {
 			input:      "hello 'foo;bar' world;",
 			expectsDir: true,
 			equalCheck: []interface{}{
-				SimpleDirective{Name: "hello", Parameter: `'foo;bar' world`},
+				SimpleDirective{Name: "hello", Parameters: []string{"'foo;bar'", "world"}},
 			},
 		},
 		{
@@ -158,7 +163,7 @@ func TestParse(t *testing.T) {
 			input:      `hello "foo;bar" world;`,
 			expectsDir: true,
 			equalCheck: []interface{}{
-				SimpleDirective{Name: "hello", Parameter: `"foo;bar" world`},
+				SimpleDirective{Name: "hello", Parameters: []string{`"foo;bar"`, "world"}},
 			},
 		},
 		{
@@ -166,7 +171,7 @@ func TestParse(t *testing.T) {
 			input:      "hello 'foo{bar' world;",
 			expectsDir: true,
 			equalCheck: []interface{}{
-				SimpleDirective{Name: "hello", Parameter: `'foo{bar' world`},
+				SimpleDirective{Name: "hello", Parameters: []string{"'foo{bar'", "world"}},
 			},
 		},
 		{
@@ -174,7 +179,7 @@ func TestParse(t *testing.T) {
 			input:      `hello "foo{bar" world;`,
 			expectsDir: true,
 			equalCheck: []interface{}{
-				SimpleDirective{Name: "hello", Parameter: `"foo{bar" world`},
+				SimpleDirective{Name: "hello", Parameters: []string{`"foo{bar"`, "world"}},
 			},
 		},
 		{
@@ -232,8 +237,8 @@ func TestParseFile(t *testing.T) {
 					Name: "server",
 					Children: []interface{}{
 						SimpleDirective{
-							Name:      "server_name",
-							Parameter: "simple",
+							Name:       "server_name",
+							Parameters: []string{"simple"},
 						},
 					},
 				},
@@ -241,20 +246,20 @@ func TestParseFile(t *testing.T) {
 					Name: "server",
 					Children: []interface{}{
 						SimpleDirective{
-							Name:      "server_name",
-							Parameter: "with.if",
+							Name:       "server_name",
+							Parameters: []string{"with.if"},
 						},
 						BlockDirective{
-							Name:      "location",
-							Parameter: "~ ^/services/.+$",
+							Name:       "location",
+							Parameters: []string{"~", "^/services/.+$"},
 							Children: []interface{}{
 								BlockDirective{
-									Name:      "if",
-									Parameter: "($request_filename ~* \\.(ttf|woff)$)",
+									Name:       "if",
+									Parameters: []string{"($request_filename", "~*", `\.(ttf|woff)$)`},
 									Children: []interface{}{
 										SimpleDirective{
-											Name:      "add_header",
-											Parameter: `Access-Control-Allow-Origin "*"`,
+											Name:       "add_header",
+											Parameters: []string{"Access-Control-Allow-Origin", `"*"`},
 										},
 									},
 								},
@@ -266,28 +271,28 @@ func TestParseFile(t *testing.T) {
 					Name: "server",
 					Children: []interface{}{
 						SimpleDirective{
-							Name:      "server_name",
-							Parameter: "with.complicated.headers",
+							Name:       "server_name",
+							Parameters: []string{"with.complicated.headers"},
 						},
 						BlockDirective{
-							Name:      "location",
-							Parameter: "~* \\.(?:gif|jpe?g|png)$",
+							Name:       "location",
+							Parameters: []string{"~*", "\\.(?:gif|jpe?g|png)$"},
 							Children: []interface{}{
 								SimpleDirective{
-									Name:      "add_header",
-									Parameter: "Pragma public",
+									Name:       "add_header",
+									Parameters: []string{"Pragma", "public"},
 								},
 								SimpleDirective{
-									Name:      "add_header",
-									Parameter: `Cache-Control  'public, must-revalidate, proxy-revalidate' "test,;{}" foo`,
+									Name:       "add_header",
+									Parameters: []string{"Cache-Control", `'public, must-revalidate, proxy-revalidate'`, `"test,;{}"`, "foo"},
 								},
 								SimpleDirective{
-									Name:      "blah",
-									Parameter: `"hello;world"`,
+									Name:       "blah",
+									Parameters: []string{`"hello;world"`},
 								},
 								SimpleDirective{
-									Name:      "try_files",
-									Parameter: "$uri @rewrites",
+									Name:       "try_files",
+									Parameters: []string{"$uri", "@rewrites"},
 								},
 							},
 						},
@@ -320,7 +325,7 @@ func TestParseFile(t *testing.T) {
 		}
 		if currentTest.equalCheck != nil {
 			if !reflect.DeepEqual(directives, currentTest.equalCheck) {
-				t.Fatalf("test %q: directive mismatch\n expects: %+v\n got: %+v",
+				t.Fatalf("test %q: directive mismatch\n expects: %#v\n got: %#v",
 					currentTest.fileName, currentTest.equalCheck, directives)
 			}
 		}

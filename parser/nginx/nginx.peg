@@ -1,5 +1,30 @@
 {
 package nginx
+
+func toString(v interface{}) string {
+	s, _ := v.(string)
+	return s
+}
+
+func toStringSlice(v interface{}) []string {
+	var ss []string
+	for _, vv := range toIfaceSlice(v) {
+	    s := toString(vv)
+	    if s == "" {
+	        continue
+	    }
+		ss = append(ss, s)
+	}
+	return ss
+}
+
+func toIfaceSlice(v interface{}) []interface{} {
+    if v == nil {
+        return nil
+    }
+    vv, _ := v.([]interface{})
+    return vv
+}
 }
 
 MainDirective = val:Directives EOF
@@ -12,34 +37,29 @@ Directives = val:( CommentDirective / BlockDirective / SimpleDirective )*
     return val, nil
 }
 
-CommentDirective "Comment" = _ '#' comment:CommentText
+CommentDirective "Comment" = whitespace* '#' comment:CommentText
 {
     return CommentDirective(strings.TrimSpace(comment.(string))), nil
 }
 
-BlockDirective "Block Directive" = _ name:DirectiveName param:DirectiveParameter? _ '{' _ dirz:Directives _ '}' _
+BlockDirective "Block Directive" = whitespace* name:DirectiveName param:(DirectiveParameterList)? whitespace*  '{' whitespace* dirs:Directives whitespace* '}' whitespace*
 {
-    nameStr, _ := name.(string)
-    paramStr, _ := param.(string)
-    dirs, _ := dirz.([]interface{})
     return BlockDirective{
-        Name: nameStr,
-        Parameter: strings.TrimSpace(paramStr),
-        Children: dirs,
+        Name: toString(name),
+        Parameters: toStringSlice(param),
+        Children: toIfaceSlice(dirs),
     }, nil
 }
 
-SimpleDirective "Simple Directive" = _ name:DirectiveName param:DirectiveParameter? _ ';' _
+SimpleDirective "Simple Directive" = whitespace* name:DirectiveName param:(DirectiveParameterList)? whitespace* ';' whitespace*
 {
-    nameStr, _ := name.(string)
-    paramStr, _ := param.(string)
     return SimpleDirective{
-        Name: nameStr,
-        Parameter: strings.TrimSpace(paramStr),
+       Name: toString(name),
+       Parameters: toStringSlice(param),
     }, nil
 }
 
-CommentText = ( ![\r\n] . )*
+CommentText = ( !newline . )*
 {
     return string(c.text), nil
 }
@@ -49,14 +69,44 @@ DirectiveName = [a-z_]+
     return string(c.text),nil
 }
 
-DirectiveParameter = __ ( EscapedChar / SingleQuotedString / DoubleQuotedString / !(_ [;{]) . )+
+DirectiveParameterList = val:( SingleQuotedParameter / DoubleQuotedParameter / ParameterText )+
 {
-    return string(c.text),nil
+    return val, nil
 }
 
-__ "space" = [ \t]+
-_ "whitespace" = [ \t\r\n]*
+SingleQuotedParameter = whitespace* val:SingleQuotedString whitespace*
+{
+    return val, nil
+}
+
+DoubleQuotedParameter = whitespace* val:DoubleQuotedString whitespace*
+{
+    return val, nil
+}
+
+ParameterText = whitespace* val:Characters whitespace*
+{
+    return val, nil
+}
+
 SingleQuotedString = `'` ( EscapedChar / (!`'` .) )* `'`
+{
+    return string(c.text), nil
+}
+
 DoubleQuotedString = `"` ( EscapedChar / (!`"` .) )* `"`
+{
+    return string(c.text), nil
+}
+
+Characters = ( EscapedChar / !( space / [;{] ) . )+
+{
+    return string(c.text), nil
+}
+
 EscapedChar = `\` .
+
+space "space" = [ \t]
+newline "newline" = [\r\n]
+whitespace "whitespace" = space / newline
 EOF = !.

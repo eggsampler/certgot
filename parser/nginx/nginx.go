@@ -18,27 +18,52 @@ import (
 	"unicode/utf8"
 )
 
+func toString(v interface{}) string {
+	s, _ := v.(string)
+	return s
+}
+
+func toStringSlice(v interface{}) []string {
+	var ss []string
+	for _, vv := range toIfaceSlice(v) {
+		s := toString(vv)
+		if s == "" {
+			continue
+		}
+		ss = append(ss, s)
+	}
+	return ss
+}
+
+func toIfaceSlice(v interface{}) []interface{} {
+	if v == nil {
+		return nil
+	}
+	vv, _ := v.([]interface{})
+	return vv
+}
+
 var g = &grammar{
 	rules: []*rule{
 		{
 			name: "MainDirective",
-			pos:  position{line: 5, col: 1, offset: 19},
+			pos:  position{line: 30, col: 1, offset: 434},
 			expr: &actionExpr{
-				pos: position{line: 5, col: 17, offset: 35},
+				pos: position{line: 30, col: 17, offset: 450},
 				run: (*parser).callonMainDirective1,
 				expr: &seqExpr{
-					pos: position{line: 5, col: 17, offset: 35},
+					pos: position{line: 30, col: 17, offset: 450},
 					exprs: []interface{}{
 						&labeledExpr{
-							pos:   position{line: 5, col: 17, offset: 35},
+							pos:   position{line: 30, col: 17, offset: 450},
 							label: "val",
 							expr: &ruleRefExpr{
-								pos:  position{line: 5, col: 21, offset: 39},
+								pos:  position{line: 30, col: 21, offset: 454},
 								name: "Directives",
 							},
 						},
 						&ruleRefExpr{
-							pos:  position{line: 5, col: 32, offset: 50},
+							pos:  position{line: 30, col: 32, offset: 465},
 							name: "EOF",
 						},
 					},
@@ -47,28 +72,28 @@ var g = &grammar{
 		},
 		{
 			name: "Directives",
-			pos:  position{line: 10, col: 1, offset: 79},
+			pos:  position{line: 35, col: 1, offset: 494},
 			expr: &actionExpr{
-				pos: position{line: 10, col: 14, offset: 92},
+				pos: position{line: 35, col: 14, offset: 507},
 				run: (*parser).callonDirectives1,
 				expr: &labeledExpr{
-					pos:   position{line: 10, col: 14, offset: 92},
+					pos:   position{line: 35, col: 14, offset: 507},
 					label: "val",
 					expr: &zeroOrMoreExpr{
-						pos: position{line: 10, col: 18, offset: 96},
+						pos: position{line: 35, col: 18, offset: 511},
 						expr: &choiceExpr{
-							pos: position{line: 10, col: 20, offset: 98},
+							pos: position{line: 35, col: 20, offset: 513},
 							alternatives: []interface{}{
 								&ruleRefExpr{
-									pos:  position{line: 10, col: 20, offset: 98},
+									pos:  position{line: 35, col: 20, offset: 513},
 									name: "CommentDirective",
 								},
 								&ruleRefExpr{
-									pos:  position{line: 10, col: 39, offset: 117},
+									pos:  position{line: 35, col: 39, offset: 532},
 									name: "BlockDirective",
 								},
 								&ruleRefExpr{
-									pos:  position{line: 10, col: 56, offset: 134},
+									pos:  position{line: 35, col: 56, offset: 549},
 									name: "SimpleDirective",
 								},
 							},
@@ -80,28 +105,31 @@ var g = &grammar{
 		{
 			name:        "CommentDirective",
 			displayName: "\"Comment\"",
-			pos:         position{line: 15, col: 1, offset: 178},
+			pos:         position{line: 40, col: 1, offset: 593},
 			expr: &actionExpr{
-				pos: position{line: 15, col: 30, offset: 207},
+				pos: position{line: 40, col: 30, offset: 622},
 				run: (*parser).callonCommentDirective1,
 				expr: &seqExpr{
-					pos: position{line: 15, col: 30, offset: 207},
+					pos: position{line: 40, col: 30, offset: 622},
 					exprs: []interface{}{
-						&ruleRefExpr{
-							pos:  position{line: 15, col: 30, offset: 207},
-							name: "_",
+						&zeroOrMoreExpr{
+							pos: position{line: 40, col: 30, offset: 622},
+							expr: &ruleRefExpr{
+								pos:  position{line: 40, col: 30, offset: 622},
+								name: "whitespace",
+							},
 						},
 						&litMatcher{
-							pos:        position{line: 15, col: 32, offset: 209},
+							pos:        position{line: 40, col: 42, offset: 634},
 							val:        "#",
 							ignoreCase: false,
 							want:       "\"#\"",
 						},
 						&labeledExpr{
-							pos:   position{line: 15, col: 36, offset: 213},
+							pos:   position{line: 40, col: 46, offset: 638},
 							label: "comment",
 							expr: &ruleRefExpr{
-								pos:  position{line: 15, col: 44, offset: 221},
+								pos:  position{line: 40, col: 54, offset: 646},
 								name: "CommentText",
 							},
 						},
@@ -112,71 +140,86 @@ var g = &grammar{
 		{
 			name:        "BlockDirective",
 			displayName: "\"Block Directive\"",
-			pos:         position{line: 20, col: 1, offset: 308},
+			pos:         position{line: 45, col: 1, offset: 733},
 			expr: &actionExpr{
-				pos: position{line: 20, col: 36, offset: 343},
+				pos: position{line: 45, col: 36, offset: 768},
 				run: (*parser).callonBlockDirective1,
 				expr: &seqExpr{
-					pos: position{line: 20, col: 36, offset: 343},
+					pos: position{line: 45, col: 36, offset: 768},
 					exprs: []interface{}{
-						&ruleRefExpr{
-							pos:  position{line: 20, col: 36, offset: 343},
-							name: "_",
+						&zeroOrMoreExpr{
+							pos: position{line: 45, col: 36, offset: 768},
+							expr: &ruleRefExpr{
+								pos:  position{line: 45, col: 36, offset: 768},
+								name: "whitespace",
+							},
 						},
 						&labeledExpr{
-							pos:   position{line: 20, col: 38, offset: 345},
+							pos:   position{line: 45, col: 48, offset: 780},
 							label: "name",
 							expr: &ruleRefExpr{
-								pos:  position{line: 20, col: 43, offset: 350},
+								pos:  position{line: 45, col: 53, offset: 785},
 								name: "DirectiveName",
 							},
 						},
 						&labeledExpr{
-							pos:   position{line: 20, col: 57, offset: 364},
+							pos:   position{line: 45, col: 67, offset: 799},
 							label: "param",
 							expr: &zeroOrOneExpr{
-								pos: position{line: 20, col: 63, offset: 370},
+								pos: position{line: 45, col: 73, offset: 805},
 								expr: &ruleRefExpr{
-									pos:  position{line: 20, col: 63, offset: 370},
-									name: "DirectiveParameter",
+									pos:  position{line: 45, col: 74, offset: 806},
+									name: "DirectiveParameterList",
 								},
 							},
 						},
-						&ruleRefExpr{
-							pos:  position{line: 20, col: 83, offset: 390},
-							name: "_",
+						&zeroOrMoreExpr{
+							pos: position{line: 45, col: 99, offset: 831},
+							expr: &ruleRefExpr{
+								pos:  position{line: 45, col: 99, offset: 831},
+								name: "whitespace",
+							},
 						},
 						&litMatcher{
-							pos:        position{line: 20, col: 85, offset: 392},
+							pos:        position{line: 45, col: 112, offset: 844},
 							val:        "{",
 							ignoreCase: false,
 							want:       "\"{\"",
 						},
-						&ruleRefExpr{
-							pos:  position{line: 20, col: 89, offset: 396},
-							name: "_",
+						&zeroOrMoreExpr{
+							pos: position{line: 45, col: 116, offset: 848},
+							expr: &ruleRefExpr{
+								pos:  position{line: 45, col: 116, offset: 848},
+								name: "whitespace",
+							},
 						},
 						&labeledExpr{
-							pos:   position{line: 20, col: 91, offset: 398},
-							label: "dirz",
+							pos:   position{line: 45, col: 128, offset: 860},
+							label: "dirs",
 							expr: &ruleRefExpr{
-								pos:  position{line: 20, col: 96, offset: 403},
+								pos:  position{line: 45, col: 133, offset: 865},
 								name: "Directives",
 							},
 						},
-						&ruleRefExpr{
-							pos:  position{line: 20, col: 107, offset: 414},
-							name: "_",
+						&zeroOrMoreExpr{
+							pos: position{line: 45, col: 144, offset: 876},
+							expr: &ruleRefExpr{
+								pos:  position{line: 45, col: 144, offset: 876},
+								name: "whitespace",
+							},
 						},
 						&litMatcher{
-							pos:        position{line: 20, col: 109, offset: 416},
+							pos:        position{line: 45, col: 156, offset: 888},
 							val:        "}",
 							ignoreCase: false,
 							want:       "\"}\"",
 						},
-						&ruleRefExpr{
-							pos:  position{line: 20, col: 113, offset: 420},
-							name: "_",
+						&zeroOrMoreExpr{
+							pos: position{line: 45, col: 160, offset: 892},
+							expr: &ruleRefExpr{
+								pos:  position{line: 45, col: 160, offset: 892},
+								name: "whitespace",
+							},
 						},
 					},
 				},
@@ -185,49 +228,58 @@ var g = &grammar{
 		{
 			name:        "SimpleDirective",
 			displayName: "\"Simple Directive\"",
-			pos:         position{line: 32, col: 1, offset: 662},
+			pos:         position{line: 54, col: 1, offset: 1057},
 			expr: &actionExpr{
-				pos: position{line: 32, col: 38, offset: 699},
+				pos: position{line: 54, col: 38, offset: 1094},
 				run: (*parser).callonSimpleDirective1,
 				expr: &seqExpr{
-					pos: position{line: 32, col: 38, offset: 699},
+					pos: position{line: 54, col: 38, offset: 1094},
 					exprs: []interface{}{
-						&ruleRefExpr{
-							pos:  position{line: 32, col: 38, offset: 699},
-							name: "_",
+						&zeroOrMoreExpr{
+							pos: position{line: 54, col: 38, offset: 1094},
+							expr: &ruleRefExpr{
+								pos:  position{line: 54, col: 38, offset: 1094},
+								name: "whitespace",
+							},
 						},
 						&labeledExpr{
-							pos:   position{line: 32, col: 40, offset: 701},
+							pos:   position{line: 54, col: 50, offset: 1106},
 							label: "name",
 							expr: &ruleRefExpr{
-								pos:  position{line: 32, col: 45, offset: 706},
+								pos:  position{line: 54, col: 55, offset: 1111},
 								name: "DirectiveName",
 							},
 						},
 						&labeledExpr{
-							pos:   position{line: 32, col: 59, offset: 720},
+							pos:   position{line: 54, col: 69, offset: 1125},
 							label: "param",
 							expr: &zeroOrOneExpr{
-								pos: position{line: 32, col: 65, offset: 726},
+								pos: position{line: 54, col: 75, offset: 1131},
 								expr: &ruleRefExpr{
-									pos:  position{line: 32, col: 65, offset: 726},
-									name: "DirectiveParameter",
+									pos:  position{line: 54, col: 76, offset: 1132},
+									name: "DirectiveParameterList",
 								},
 							},
 						},
-						&ruleRefExpr{
-							pos:  position{line: 32, col: 85, offset: 746},
-							name: "_",
+						&zeroOrMoreExpr{
+							pos: position{line: 54, col: 101, offset: 1157},
+							expr: &ruleRefExpr{
+								pos:  position{line: 54, col: 101, offset: 1157},
+								name: "whitespace",
+							},
 						},
 						&litMatcher{
-							pos:        position{line: 32, col: 87, offset: 748},
+							pos:        position{line: 54, col: 113, offset: 1169},
 							val:        ";",
 							ignoreCase: false,
 							want:       "\";\"",
 						},
-						&ruleRefExpr{
-							pos:  position{line: 32, col: 91, offset: 752},
-							name: "_",
+						&zeroOrMoreExpr{
+							pos: position{line: 54, col: 117, offset: 1173},
+							expr: &ruleRefExpr{
+								pos:  position{line: 54, col: 117, offset: 1173},
+								name: "whitespace",
+							},
 						},
 					},
 				},
@@ -235,27 +287,24 @@ var g = &grammar{
 		},
 		{
 			name: "CommentText",
-			pos:  position{line: 42, col: 1, offset: 935},
+			pos:  position{line: 62, col: 1, offset: 1299},
 			expr: &actionExpr{
-				pos: position{line: 42, col: 15, offset: 949},
+				pos: position{line: 62, col: 15, offset: 1313},
 				run: (*parser).callonCommentText1,
 				expr: &zeroOrMoreExpr{
-					pos: position{line: 42, col: 15, offset: 949},
+					pos: position{line: 62, col: 15, offset: 1313},
 					expr: &seqExpr{
-						pos: position{line: 42, col: 17, offset: 951},
+						pos: position{line: 62, col: 17, offset: 1315},
 						exprs: []interface{}{
 							&notExpr{
-								pos: position{line: 42, col: 17, offset: 951},
-								expr: &charClassMatcher{
-									pos:        position{line: 42, col: 18, offset: 952},
-									val:        "[\\r\\n]",
-									chars:      []rune{'\r', '\n'},
-									ignoreCase: false,
-									inverted:   false,
+								pos: position{line: 62, col: 17, offset: 1315},
+								expr: &ruleRefExpr{
+									pos:  position{line: 62, col: 18, offset: 1316},
+									name: "newline",
 								},
 							},
 							&anyMatcher{
-								line: 42, col: 25, offset: 959,
+								line: 62, col: 26, offset: 1324,
 							},
 						},
 					},
@@ -264,14 +313,14 @@ var g = &grammar{
 		},
 		{
 			name: "DirectiveName",
-			pos:  position{line: 47, col: 1, offset: 1000},
+			pos:  position{line: 67, col: 1, offset: 1365},
 			expr: &actionExpr{
-				pos: position{line: 47, col: 17, offset: 1016},
+				pos: position{line: 67, col: 17, offset: 1381},
 				run: (*parser).callonDirectiveName1,
 				expr: &oneOrMoreExpr{
-					pos: position{line: 47, col: 17, offset: 1016},
+					pos: position{line: 67, col: 17, offset: 1381},
 					expr: &charClassMatcher{
-						pos:        position{line: 47, col: 17, offset: 1016},
+						pos:        position{line: 67, col: 17, offset: 1381},
 						val:        "[a-z_]",
 						chars:      []rune{'_'},
 						ranges:     []rune{'a', 'z'},
@@ -282,62 +331,30 @@ var g = &grammar{
 			},
 		},
 		{
-			name: "DirectiveParameter",
-			pos:  position{line: 52, col: 1, offset: 1059},
+			name: "DirectiveParameterList",
+			pos:  position{line: 72, col: 1, offset: 1424},
 			expr: &actionExpr{
-				pos: position{line: 52, col: 22, offset: 1080},
-				run: (*parser).callonDirectiveParameter1,
-				expr: &seqExpr{
-					pos: position{line: 52, col: 22, offset: 1080},
-					exprs: []interface{}{
-						&ruleRefExpr{
-							pos:  position{line: 52, col: 22, offset: 1080},
-							name: "__",
-						},
-						&oneOrMoreExpr{
-							pos: position{line: 52, col: 25, offset: 1083},
-							expr: &choiceExpr{
-								pos: position{line: 52, col: 27, offset: 1085},
-								alternatives: []interface{}{
-									&ruleRefExpr{
-										pos:  position{line: 52, col: 27, offset: 1085},
-										name: "EscapedChar",
-									},
-									&ruleRefExpr{
-										pos:  position{line: 52, col: 41, offset: 1099},
-										name: "SingleQuotedString",
-									},
-									&ruleRefExpr{
-										pos:  position{line: 52, col: 62, offset: 1120},
-										name: "DoubleQuotedString",
-									},
-									&seqExpr{
-										pos: position{line: 52, col: 83, offset: 1141},
-										exprs: []interface{}{
-											&notExpr{
-												pos: position{line: 52, col: 83, offset: 1141},
-												expr: &seqExpr{
-													pos: position{line: 52, col: 85, offset: 1143},
-													exprs: []interface{}{
-														&ruleRefExpr{
-															pos:  position{line: 52, col: 85, offset: 1143},
-															name: "_",
-														},
-														&charClassMatcher{
-															pos:        position{line: 52, col: 87, offset: 1145},
-															val:        "[;{]",
-															chars:      []rune{';', '{'},
-															ignoreCase: false,
-															inverted:   false,
-														},
-													},
-												},
-											},
-											&anyMatcher{
-												line: 52, col: 93, offset: 1151,
-											},
-										},
-									},
+				pos: position{line: 72, col: 26, offset: 1449},
+				run: (*parser).callonDirectiveParameterList1,
+				expr: &labeledExpr{
+					pos:   position{line: 72, col: 26, offset: 1449},
+					label: "val",
+					expr: &oneOrMoreExpr{
+						pos: position{line: 72, col: 30, offset: 1453},
+						expr: &choiceExpr{
+							pos: position{line: 72, col: 32, offset: 1455},
+							alternatives: []interface{}{
+								&ruleRefExpr{
+									pos:  position{line: 72, col: 32, offset: 1455},
+									name: "SingleQuotedParameter",
+								},
+								&ruleRefExpr{
+									pos:  position{line: 72, col: 56, offset: 1479},
+									name: "DoubleQuotedParameter",
+								},
+								&ruleRefExpr{
+									pos:  position{line: 72, col: 80, offset: 1503},
+									name: "ParameterText",
 								},
 							},
 						},
@@ -346,160 +363,332 @@ var g = &grammar{
 			},
 		},
 		{
-			name:        "__",
-			displayName: "\"space\"",
-			pos:         position{line: 57, col: 1, offset: 1191},
-			expr: &oneOrMoreExpr{
-				pos: position{line: 57, col: 14, offset: 1204},
-				expr: &charClassMatcher{
-					pos:        position{line: 57, col: 14, offset: 1204},
-					val:        "[ \\t]",
-					chars:      []rune{' ', '\t'},
-					ignoreCase: false,
-					inverted:   false,
+			name: "SingleQuotedParameter",
+			pos:  position{line: 77, col: 1, offset: 1545},
+			expr: &actionExpr{
+				pos: position{line: 77, col: 25, offset: 1569},
+				run: (*parser).callonSingleQuotedParameter1,
+				expr: &seqExpr{
+					pos: position{line: 77, col: 25, offset: 1569},
+					exprs: []interface{}{
+						&zeroOrMoreExpr{
+							pos: position{line: 77, col: 25, offset: 1569},
+							expr: &ruleRefExpr{
+								pos:  position{line: 77, col: 25, offset: 1569},
+								name: "whitespace",
+							},
+						},
+						&labeledExpr{
+							pos:   position{line: 77, col: 37, offset: 1581},
+							label: "val",
+							expr: &ruleRefExpr{
+								pos:  position{line: 77, col: 41, offset: 1585},
+								name: "SingleQuotedString",
+							},
+						},
+						&zeroOrMoreExpr{
+							pos: position{line: 77, col: 60, offset: 1604},
+							expr: &ruleRefExpr{
+								pos:  position{line: 77, col: 60, offset: 1604},
+								name: "whitespace",
+							},
+						},
+					},
 				},
 			},
 		},
 		{
-			name:        "_",
-			displayName: "\"whitespace\"",
-			pos:         position{line: 58, col: 1, offset: 1211},
-			expr: &zeroOrMoreExpr{
-				pos: position{line: 58, col: 18, offset: 1228},
-				expr: &charClassMatcher{
-					pos:        position{line: 58, col: 18, offset: 1228},
-					val:        "[ \\t\\r\\n]",
-					chars:      []rune{' ', '\t', '\r', '\n'},
-					ignoreCase: false,
-					inverted:   false,
+			name: "DoubleQuotedParameter",
+			pos:  position{line: 82, col: 1, offset: 1641},
+			expr: &actionExpr{
+				pos: position{line: 82, col: 25, offset: 1665},
+				run: (*parser).callonDoubleQuotedParameter1,
+				expr: &seqExpr{
+					pos: position{line: 82, col: 25, offset: 1665},
+					exprs: []interface{}{
+						&zeroOrMoreExpr{
+							pos: position{line: 82, col: 25, offset: 1665},
+							expr: &ruleRefExpr{
+								pos:  position{line: 82, col: 25, offset: 1665},
+								name: "whitespace",
+							},
+						},
+						&labeledExpr{
+							pos:   position{line: 82, col: 37, offset: 1677},
+							label: "val",
+							expr: &ruleRefExpr{
+								pos:  position{line: 82, col: 41, offset: 1681},
+								name: "DoubleQuotedString",
+							},
+						},
+						&zeroOrMoreExpr{
+							pos: position{line: 82, col: 60, offset: 1700},
+							expr: &ruleRefExpr{
+								pos:  position{line: 82, col: 60, offset: 1700},
+								name: "whitespace",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "ParameterText",
+			pos:  position{line: 87, col: 1, offset: 1737},
+			expr: &actionExpr{
+				pos: position{line: 87, col: 17, offset: 1753},
+				run: (*parser).callonParameterText1,
+				expr: &seqExpr{
+					pos: position{line: 87, col: 17, offset: 1753},
+					exprs: []interface{}{
+						&zeroOrMoreExpr{
+							pos: position{line: 87, col: 17, offset: 1753},
+							expr: &ruleRefExpr{
+								pos:  position{line: 87, col: 17, offset: 1753},
+								name: "whitespace",
+							},
+						},
+						&labeledExpr{
+							pos:   position{line: 87, col: 29, offset: 1765},
+							label: "val",
+							expr: &ruleRefExpr{
+								pos:  position{line: 87, col: 33, offset: 1769},
+								name: "Characters",
+							},
+						},
+						&zeroOrMoreExpr{
+							pos: position{line: 87, col: 44, offset: 1780},
+							expr: &ruleRefExpr{
+								pos:  position{line: 87, col: 44, offset: 1780},
+								name: "whitespace",
+							},
+						},
+					},
 				},
 			},
 		},
 		{
 			name: "SingleQuotedString",
-			pos:  position{line: 59, col: 1, offset: 1239},
-			expr: &seqExpr{
-				pos: position{line: 59, col: 22, offset: 1260},
-				exprs: []interface{}{
-					&litMatcher{
-						pos:        position{line: 59, col: 22, offset: 1260},
-						val:        "'",
-						ignoreCase: false,
-						want:       "\"'\"",
-					},
-					&zeroOrMoreExpr{
-						pos: position{line: 59, col: 26, offset: 1264},
-						expr: &choiceExpr{
-							pos: position{line: 59, col: 28, offset: 1266},
-							alternatives: []interface{}{
-								&ruleRefExpr{
-									pos:  position{line: 59, col: 28, offset: 1266},
-									name: "EscapedChar",
-								},
-								&seqExpr{
-									pos: position{line: 59, col: 43, offset: 1281},
-									exprs: []interface{}{
-										&notExpr{
-											pos: position{line: 59, col: 43, offset: 1281},
-											expr: &litMatcher{
-												pos:        position{line: 59, col: 44, offset: 1282},
-												val:        "'",
-												ignoreCase: false,
-												want:       "\"'\"",
+			pos:  position{line: 92, col: 1, offset: 1817},
+			expr: &actionExpr{
+				pos: position{line: 92, col: 22, offset: 1838},
+				run: (*parser).callonSingleQuotedString1,
+				expr: &seqExpr{
+					pos: position{line: 92, col: 22, offset: 1838},
+					exprs: []interface{}{
+						&litMatcher{
+							pos:        position{line: 92, col: 22, offset: 1838},
+							val:        "'",
+							ignoreCase: false,
+							want:       "\"'\"",
+						},
+						&zeroOrMoreExpr{
+							pos: position{line: 92, col: 26, offset: 1842},
+							expr: &choiceExpr{
+								pos: position{line: 92, col: 28, offset: 1844},
+								alternatives: []interface{}{
+									&ruleRefExpr{
+										pos:  position{line: 92, col: 28, offset: 1844},
+										name: "EscapedChar",
+									},
+									&seqExpr{
+										pos: position{line: 92, col: 43, offset: 1859},
+										exprs: []interface{}{
+											&notExpr{
+												pos: position{line: 92, col: 43, offset: 1859},
+												expr: &litMatcher{
+													pos:        position{line: 92, col: 44, offset: 1860},
+													val:        "'",
+													ignoreCase: false,
+													want:       "\"'\"",
+												},
 											},
-										},
-										&anyMatcher{
-											line: 59, col: 48, offset: 1286,
+											&anyMatcher{
+												line: 92, col: 48, offset: 1864,
+											},
 										},
 									},
 								},
 							},
 						},
-					},
-					&litMatcher{
-						pos:        position{line: 59, col: 54, offset: 1292},
-						val:        "'",
-						ignoreCase: false,
-						want:       "\"'\"",
+						&litMatcher{
+							pos:        position{line: 92, col: 54, offset: 1870},
+							val:        "'",
+							ignoreCase: false,
+							want:       "\"'\"",
+						},
 					},
 				},
 			},
 		},
 		{
 			name: "DoubleQuotedString",
-			pos:  position{line: 60, col: 1, offset: 1296},
-			expr: &seqExpr{
-				pos: position{line: 60, col: 22, offset: 1317},
-				exprs: []interface{}{
-					&litMatcher{
-						pos:        position{line: 60, col: 22, offset: 1317},
-						val:        "\"",
-						ignoreCase: false,
-						want:       "\"\\\"\"",
-					},
-					&zeroOrMoreExpr{
-						pos: position{line: 60, col: 26, offset: 1321},
-						expr: &choiceExpr{
-							pos: position{line: 60, col: 28, offset: 1323},
-							alternatives: []interface{}{
-								&ruleRefExpr{
-									pos:  position{line: 60, col: 28, offset: 1323},
-									name: "EscapedChar",
-								},
-								&seqExpr{
-									pos: position{line: 60, col: 43, offset: 1338},
-									exprs: []interface{}{
-										&notExpr{
-											pos: position{line: 60, col: 43, offset: 1338},
-											expr: &litMatcher{
-												pos:        position{line: 60, col: 44, offset: 1339},
-												val:        "\"",
-												ignoreCase: false,
-												want:       "\"\\\"\"",
+			pos:  position{line: 97, col: 1, offset: 1910},
+			expr: &actionExpr{
+				pos: position{line: 97, col: 22, offset: 1931},
+				run: (*parser).callonDoubleQuotedString1,
+				expr: &seqExpr{
+					pos: position{line: 97, col: 22, offset: 1931},
+					exprs: []interface{}{
+						&litMatcher{
+							pos:        position{line: 97, col: 22, offset: 1931},
+							val:        "\"",
+							ignoreCase: false,
+							want:       "\"\\\"\"",
+						},
+						&zeroOrMoreExpr{
+							pos: position{line: 97, col: 26, offset: 1935},
+							expr: &choiceExpr{
+								pos: position{line: 97, col: 28, offset: 1937},
+								alternatives: []interface{}{
+									&ruleRefExpr{
+										pos:  position{line: 97, col: 28, offset: 1937},
+										name: "EscapedChar",
+									},
+									&seqExpr{
+										pos: position{line: 97, col: 43, offset: 1952},
+										exprs: []interface{}{
+											&notExpr{
+												pos: position{line: 97, col: 43, offset: 1952},
+												expr: &litMatcher{
+													pos:        position{line: 97, col: 44, offset: 1953},
+													val:        "\"",
+													ignoreCase: false,
+													want:       "\"\\\"\"",
+												},
 											},
-										},
-										&anyMatcher{
-											line: 60, col: 48, offset: 1343,
+											&anyMatcher{
+												line: 97, col: 48, offset: 1957,
+											},
 										},
 									},
 								},
 							},
 						},
+						&litMatcher{
+							pos:        position{line: 97, col: 54, offset: 1963},
+							val:        "\"",
+							ignoreCase: false,
+							want:       "\"\\\"\"",
+						},
 					},
-					&litMatcher{
-						pos:        position{line: 60, col: 54, offset: 1349},
-						val:        "\"",
-						ignoreCase: false,
-						want:       "\"\\\"\"",
+				},
+			},
+		},
+		{
+			name: "Characters",
+			pos:  position{line: 102, col: 1, offset: 2003},
+			expr: &actionExpr{
+				pos: position{line: 102, col: 14, offset: 2016},
+				run: (*parser).callonCharacters1,
+				expr: &oneOrMoreExpr{
+					pos: position{line: 102, col: 14, offset: 2016},
+					expr: &choiceExpr{
+						pos: position{line: 102, col: 16, offset: 2018},
+						alternatives: []interface{}{
+							&ruleRefExpr{
+								pos:  position{line: 102, col: 16, offset: 2018},
+								name: "EscapedChar",
+							},
+							&seqExpr{
+								pos: position{line: 102, col: 30, offset: 2032},
+								exprs: []interface{}{
+									&notExpr{
+										pos: position{line: 102, col: 30, offset: 2032},
+										expr: &choiceExpr{
+											pos: position{line: 102, col: 33, offset: 2035},
+											alternatives: []interface{}{
+												&ruleRefExpr{
+													pos:  position{line: 102, col: 33, offset: 2035},
+													name: "space",
+												},
+												&charClassMatcher{
+													pos:        position{line: 102, col: 41, offset: 2043},
+													val:        "[;{]",
+													chars:      []rune{';', '{'},
+													ignoreCase: false,
+													inverted:   false,
+												},
+											},
+										},
+									},
+									&anyMatcher{
+										line: 102, col: 48, offset: 2050,
+									},
+								},
+							},
+						},
 					},
 				},
 			},
 		},
 		{
 			name: "EscapedChar",
-			pos:  position{line: 61, col: 1, offset: 1353},
+			pos:  position{line: 107, col: 1, offset: 2091},
 			expr: &seqExpr{
-				pos: position{line: 61, col: 15, offset: 1367},
+				pos: position{line: 107, col: 15, offset: 2105},
 				exprs: []interface{}{
 					&litMatcher{
-						pos:        position{line: 61, col: 15, offset: 1367},
+						pos:        position{line: 107, col: 15, offset: 2105},
 						val:        "\\",
 						ignoreCase: false,
 						want:       "\"\\\\\"",
 					},
 					&anyMatcher{
-						line: 61, col: 19, offset: 1371,
+						line: 107, col: 19, offset: 2109,
+					},
+				},
+			},
+		},
+		{
+			name:        "space",
+			displayName: "\"space\"",
+			pos:         position{line: 109, col: 1, offset: 2112},
+			expr: &charClassMatcher{
+				pos:        position{line: 109, col: 17, offset: 2128},
+				val:        "[ \\t]",
+				chars:      []rune{' ', '\t'},
+				ignoreCase: false,
+				inverted:   false,
+			},
+		},
+		{
+			name:        "newline",
+			displayName: "\"newline\"",
+			pos:         position{line: 110, col: 1, offset: 2134},
+			expr: &charClassMatcher{
+				pos:        position{line: 110, col: 21, offset: 2154},
+				val:        "[\\r\\n]",
+				chars:      []rune{'\r', '\n'},
+				ignoreCase: false,
+				inverted:   false,
+			},
+		},
+		{
+			name:        "whitespace",
+			displayName: "\"whitespace\"",
+			pos:         position{line: 111, col: 1, offset: 2161},
+			expr: &choiceExpr{
+				pos: position{line: 111, col: 27, offset: 2187},
+				alternatives: []interface{}{
+					&ruleRefExpr{
+						pos:  position{line: 111, col: 27, offset: 2187},
+						name: "space",
+					},
+					&ruleRefExpr{
+						pos:  position{line: 111, col: 35, offset: 2195},
+						name: "newline",
 					},
 				},
 			},
 		},
 		{
 			name: "EOF",
-			pos:  position{line: 62, col: 1, offset: 1373},
+			pos:  position{line: 112, col: 1, offset: 2203},
 			expr: &notExpr{
-				pos: position{line: 62, col: 7, offset: 1379},
+				pos: position{line: 112, col: 7, offset: 2209},
 				expr: &anyMatcher{
-					line: 62, col: 8, offset: 1380,
+					line: 112, col: 8, offset: 2210,
 				},
 			},
 		},
@@ -536,29 +725,24 @@ func (p *parser) callonCommentDirective1() (interface{}, error) {
 	return p.cur.onCommentDirective1(stack["comment"])
 }
 
-func (c *current) onBlockDirective1(name, param, dirz interface{}) (interface{}, error) {
-	nameStr, _ := name.(string)
-	paramStr, _ := param.(string)
-	dirs, _ := dirz.([]interface{})
+func (c *current) onBlockDirective1(name, param, dirs interface{}) (interface{}, error) {
 	return BlockDirective{
-		Name:      nameStr,
-		Parameter: strings.TrimSpace(paramStr),
-		Children:  dirs,
+		Name:       toString(name),
+		Parameters: toStringSlice(param),
+		Children:   toIfaceSlice(dirs),
 	}, nil
 }
 
 func (p *parser) callonBlockDirective1() (interface{}, error) {
 	stack := p.vstack[len(p.vstack)-1]
 	_ = stack
-	return p.cur.onBlockDirective1(stack["name"], stack["param"], stack["dirz"])
+	return p.cur.onBlockDirective1(stack["name"], stack["param"], stack["dirs"])
 }
 
 func (c *current) onSimpleDirective1(name, param interface{}) (interface{}, error) {
-	nameStr, _ := name.(string)
-	paramStr, _ := param.(string)
 	return SimpleDirective{
-		Name:      nameStr,
-		Parameter: strings.TrimSpace(paramStr),
+		Name:       toString(name),
+		Parameters: toStringSlice(param),
 	}, nil
 }
 
@@ -588,14 +772,74 @@ func (p *parser) callonDirectiveName1() (interface{}, error) {
 	return p.cur.onDirectiveName1()
 }
 
-func (c *current) onDirectiveParameter1() (interface{}, error) {
+func (c *current) onDirectiveParameterList1(val interface{}) (interface{}, error) {
+	return val, nil
+}
+
+func (p *parser) callonDirectiveParameterList1() (interface{}, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onDirectiveParameterList1(stack["val"])
+}
+
+func (c *current) onSingleQuotedParameter1(val interface{}) (interface{}, error) {
+	return val, nil
+}
+
+func (p *parser) callonSingleQuotedParameter1() (interface{}, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onSingleQuotedParameter1(stack["val"])
+}
+
+func (c *current) onDoubleQuotedParameter1(val interface{}) (interface{}, error) {
+	return val, nil
+}
+
+func (p *parser) callonDoubleQuotedParameter1() (interface{}, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onDoubleQuotedParameter1(stack["val"])
+}
+
+func (c *current) onParameterText1(val interface{}) (interface{}, error) {
+	return val, nil
+}
+
+func (p *parser) callonParameterText1() (interface{}, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onParameterText1(stack["val"])
+}
+
+func (c *current) onSingleQuotedString1() (interface{}, error) {
 	return string(c.text), nil
 }
 
-func (p *parser) callonDirectiveParameter1() (interface{}, error) {
+func (p *parser) callonSingleQuotedString1() (interface{}, error) {
 	stack := p.vstack[len(p.vstack)-1]
 	_ = stack
-	return p.cur.onDirectiveParameter1()
+	return p.cur.onSingleQuotedString1()
+}
+
+func (c *current) onDoubleQuotedString1() (interface{}, error) {
+	return string(c.text), nil
+}
+
+func (p *parser) callonDoubleQuotedString1() (interface{}, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onDoubleQuotedString1()
+}
+
+func (c *current) onCharacters1() (interface{}, error) {
+	return string(c.text), nil
+}
+
+func (p *parser) callonCharacters1() (interface{}, error) {
+	stack := p.vstack[len(p.vstack)-1]
+	_ = stack
+	return p.cur.onCharacters1()
 }
 
 var (
