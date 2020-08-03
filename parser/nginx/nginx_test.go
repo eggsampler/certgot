@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -32,6 +33,7 @@ func TestParse(t *testing.T) {
 		input      string
 		fileName   string
 		hasError   bool
+		errorStr   string
 		expectsDir bool
 		equalCheck []interface{}
 	}{
@@ -197,6 +199,9 @@ func TestParse(t *testing.T) {
 			}
 			t.Fatalf("test %q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
 		}
+		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
+			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
+		}
 		directives, ok := output.([]interface{})
 		if currentTest.expectsDir != ok {
 			t.Fatalf("test %q: expects directive %t, got: %t", currentTest.testName, currentTest.expectsDir, ok)
@@ -214,6 +219,7 @@ func TestParseFile(t *testing.T) {
 	fileList := []struct {
 		fileName   string
 		hasError   bool
+		errorStr   string
 		expectsDir bool
 		equalCheck []interface{}
 	}{
@@ -301,7 +307,67 @@ func TestParseFile(t *testing.T) {
 			},
 		},
 		{
+			fileName:   filepath.Join("testdata", "foo.conf"),
+			expectsDir: true,
+		},
+		{
+			fileName:   filepath.Join("testdata", "invalid_unicode_comments.conf"),
+			hasError:   true,
+			errorStr:   "invalid encoding",
+			expectsDir: true, // TODO: should this actually "succeed" to parse?
+		},
+		{
+			fileName:   filepath.Join("testdata", "minimalistic_comments.conf"),
+			expectsDir: true,
+		},
+		{
+			fileName:   filepath.Join("testdata", "multiline_quotes.conf"),
+			expectsDir: true,
+			equalCheck: []interface{}{
+				CommentDirective("Test nginx configuration file with multiline quoted strings."),
+				CommentDirective("Good example of usage for multilined quoted values is when"),
+				CommentDirective("using Openresty's Lua directives and you wish to keep the"),
+				CommentDirective("inline Lua code readable."),
+				BlockDirective{
+					Name: "http",
+					Children: []interface{}{
+						BlockDirective{
+							Name: "server",
+							Children: []interface{}{
+								SimpleDirective{
+									Name:       "listen",
+									Parameters: []string{"*:443"},
+								},
+								CommentDirective("because there should be no other port open."),
+								BlockDirective{
+									Name:       "location",
+									Parameters: []string{"/"},
+									Children: []interface{}{
+										SimpleDirective{
+											Name: "body_filter_by_lua",
+											Parameters: []string{`'ngx.ctx.buffered = (ngx.ctx.buffered or "") .. string.sub(ngx.arg[1], 1, 1000)
+                            if ngx.arg[2] then
+                              ngx.var.resp_body = ngx.ctx.buffered
+                            end'`},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			fileName:   filepath.Join("testdata", "nginx.conf"),
+			expectsDir: true,
+		},
+		{
+			fileName:   filepath.Join("testdata", "server.conf"),
+			expectsDir: true,
+		},
+		{
+			fileName:   filepath.Join("testdata", "valid_unicode_comments.conf"),
 			expectsDir: true,
 		},
 	}
@@ -319,9 +385,13 @@ func TestParseFile(t *testing.T) {
 			t.Fatalf("test %q: expected error %v, got: %v\n output: %+v",
 				currentTest.fileName, currentTest.hasError, err, output)
 		}
+		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
+			t.Fatalf("test %q: expected %q in error: %v", currentTest.fileName, currentTest.errorStr, err)
+		}
 		directives, ok := output.([]interface{})
 		if currentTest.expectsDir != ok {
-			t.Fatalf("test %q: expects directive %t, got: %t", currentTest.fileName, currentTest.expectsDir, ok)
+			t.Fatalf("test %q: expects directive %t, got: %t\n output: %#v",
+				currentTest.fileName, currentTest.expectsDir, ok, directives)
 		}
 		if currentTest.equalCheck != nil {
 			if !reflect.DeepEqual(directives, currentTest.equalCheck) {

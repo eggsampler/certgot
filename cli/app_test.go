@@ -445,7 +445,7 @@ func TestApp_doRun(t *testing.T) {
 		app        *App
 		subCommand SubCommand
 		hasError   bool
-		errStr     string
+		errorStr   string
 	}{
 		{
 			testName: "empty app",
@@ -519,7 +519,7 @@ func TestApp_doRun(t *testing.T) {
 				},
 			},
 			hasError: true,
-			errStr:   "prefunc funky",
+			errorStr: "prefunc funky",
 		},
 		{
 			testName: "SubCommand succeed",
@@ -539,7 +539,7 @@ func TestApp_doRun(t *testing.T) {
 				},
 			},
 			hasError: true,
-			errStr:   "subcommand funky",
+			errorStr: "subcommand funky",
 		},
 		{
 			testName: "postfunc succeed",
@@ -557,7 +557,7 @@ func TestApp_doRun(t *testing.T) {
 				},
 			},
 			hasError: true,
-			errStr:   "postfunc funky",
+			errorStr: "postfunc funky",
 		},
 	}
 
@@ -569,6 +569,9 @@ func TestApp_doRun(t *testing.T) {
 		err := doRun(&ctx)
 		if currentTest.hasError == (err == nil) {
 			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
+			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
 		}
 	}
 }

@@ -21,7 +21,7 @@ func Test_parseConfig(t *testing.T) {
 		configString string
 		fileName     string
 		hasError     bool
-		errStr       string
+		errorStr     string
 		checkFunc    func(cfg map[string]configEntry) error
 	}{
 		{
@@ -32,7 +32,7 @@ func Test_parseConfig(t *testing.T) {
 			testName:     "invalid",
 			configString: "1234",
 			hasError:     true,
-			errStr:       "invalid",
+			errorStr:     "invalid",
 		},
 		{
 			testName:     "no config",
@@ -95,6 +95,9 @@ func Test_parseConfig(t *testing.T) {
 		if currentTest.hasError == (err == nil) {
 			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
 		}
+		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
+			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
+		}
 		if currentTest.checkFunc != nil {
 			if err := currentTest.checkFunc(cfg); err != nil {
 				t.Fatalf("%q: unexpected error %v", currentTest.testName, err)
@@ -109,7 +112,7 @@ func Test_setConfig(t *testing.T) {
 		config    map[string]configEntry
 		args      map[string]*Argument
 		hasError  bool
-		errStr    string
+		errorStr  string
 		checkFunc func(config map[string]configEntry, args map[string]*Argument) error
 	}{
 		{testName: "empty"},
@@ -117,7 +120,7 @@ func Test_setConfig(t *testing.T) {
 			testName: "no arg for cfg",
 			config:   map[string]configEntry{"hello": {}},
 			hasError: true,
-			errStr:   "unknown argument",
+			errorStr: "unknown argument",
 		},
 		{
 			testName: "set arg",
@@ -139,7 +142,7 @@ func Test_setConfig(t *testing.T) {
 			config:   map[string]configEntry{"hello": {hasValue: true, value: "world"}},
 			args:     map[string]*Argument{"hello": {}},
 			hasError: true,
-			errStr:   "error setting arg",
+			errorStr: "error setting arg",
 		},
 	}
 
@@ -147,6 +150,9 @@ func Test_setConfig(t *testing.T) {
 		err := setConfig(currentTest.config, currentTest.args)
 		if currentTest.hasError == (err == nil) {
 			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
+			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
 		}
 	}
 }
