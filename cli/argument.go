@@ -60,6 +60,17 @@ func (arg Argument) String() string {
 	return s
 }
 
+func (arg Argument) StringOrDefault() string {
+	if arg.HasValue() {
+		s, ok := arg.value.(string)
+		if ok {
+			return s
+		}
+	}
+	s, _ := arg.DefaultValue.Get().(string)
+	return s
+}
+
 func (arg Argument) StringSlice() []string {
 	s, _ := arg.value.([]string)
 	return s
@@ -83,17 +94,6 @@ func (arg Argument) BoolOrDefault() bool {
 	}
 	b, _ := defaultVal.(bool)
 	return b
-}
-
-func (arg Argument) StringOrDefault() string {
-	if arg.HasValue() {
-		s, ok := arg.value.(string)
-		if ok {
-			return s
-		}
-	}
-	s, _ := arg.DefaultValue.Get().(string)
-	return s
 }
 
 func (arg Argument) StringSliceOrDefault() []string {

@@ -5,19 +5,23 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/user"
+	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/eggsampler/certgot/util"
 )
 
 var (
 	configLine = regexp.MustCompile(`([a-zA-Z\-]+)(?:\s*=\s*(.+))?`)
 )
 
-func (app *App) LoadConfig(configFiles []string) error {
+func (app *App) LoadConfig(argCfg *Argument) error {
 	cfg := map[string]configEntry{}
-	for _, fileName := range configFiles {
+	for _, fileName := range argCfg.StringSliceOrDefault() {
+		// skip file not found errors if config is default cfg files
+		if !argCfg.isPresent && !fileExists(fileName) {
+			continue
+		}
 		if err := parseConfigFile(cfg, fileName); err != nil {
 			return err
 		}
@@ -34,9 +38,9 @@ type configEntry struct {
 }
 
 func parseConfigFile(cfg map[string]configEntry, fileName string) error {
-	fileName = util.ParsePath(fileName)
-	if !util.FileExists(fileName) {
-		return fmt.Errorf("config file doesn't exist: %s", fileName)
+	fileName = parsePath(fileName)
+	if !fileExists(fileName) {
+		return fmt.Errorf("error loading config file %s: %w", fileName, os.ErrNotExist)
 	}
 	f, err := os.Open(fileName)
 	if err != nil {
@@ -82,9 +86,36 @@ func setConfig(config map[string]configEntry, args map[string]*Argument) error {
 		arg.isPresent = true
 		if entry.hasValue {
 			if err := arg.Set(entry.value); err != nil {
-				return fmt.Errorf("error setting argument %s to value %q: %v", key, entry.value, err)
+				return fmt.Errorf("error setting argument %q to value %q: %v", key, entry.value, err)
 			}
 		}
 	}
 	return nil
+}
+
+func parsePath(path string) string {
+	if !strings.HasPrefix(path, "~") {
+		return filepath.Clean(path)
+	}
+	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+		return filepath.Join(xdgConfigHome + path[1:])
+	}
+	if u, err := user.Current(); err != nil {
+		return filepath.Join(u.HomeDir, path[1:])
+	}
+	if home := os.Getenv("HOME"); home != "" {
+		return filepath.Join(home, path[1:])
+	}
+	if home := filepath.Join(os.Getenv("HomeDrive"), os.Getenv("HomePath")); home != "" {
+		return filepath.Join(home, path[1:])
+	}
+	if home := os.Getenv("UserProfile"); home != "" {
+		return filepath.Join(home, path[1:])
+	}
+	return filepath.Clean(path)
+}
+
+func fileExists(f string) bool {
+	_, err := os.Stat(f)
+	return err == nil || os.IsExist(err) || !os.IsNotExist(err)
 }

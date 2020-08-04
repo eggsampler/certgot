@@ -1,4 +1,4 @@
-package util
+package main
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ var (
 	lockFiles []*flock.Flock
 )
 
-func SetupLocks(dirs []string) error {
+func setupLocks(dirs []string) error {
 	for _, dir := range dirs {
 		lf := flock.New(filepath.Join(dir, ".certbot.lock"))
 		locked, err := lf.TryLock()
@@ -27,7 +27,7 @@ func SetupLocks(dirs []string) error {
 	return nil
 }
 
-func CleanupLocks() {
+func cleanupLocks() {
 	for _, lf := range lockFiles {
 		_ = lf.Unlock()
 		_ = os.Remove(lf.Path())

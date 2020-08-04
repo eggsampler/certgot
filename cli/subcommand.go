@@ -3,5 +3,5 @@ package cli
 type SubCommand struct {
 	Name    string
 	Default bool
-	Run     func(c *Context) error
+	Run     func(app *App) error
 }

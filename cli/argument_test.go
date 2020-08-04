@@ -1,5 +1,8 @@
 package cli
 
+// TODO: neaten up some of these tests
+// ie testList := []struct{} style
+
 import (
 	"reflect"
 	"testing"
@@ -27,50 +30,6 @@ func TestArgument_Value(t *testing.T) {
 	}
 	if !reflect.DeepEqual(arg.Value(), "blah") {
 		t.Fatalf("not equal")
-	}
-}
-
-func TestArgument_StringOrDefault(t *testing.T) {
-	arg := Argument{Name: "test", DefaultValue: SimpleValue{"default"}}
-	if arg.StringOrDefault() == "" {
-		t.Fatalf("expected not empty")
-	}
-	arg.value = "blah"
-	if arg.StringOrDefault() == "" {
-		t.Fatal("expected not empty")
-	}
-	if !reflect.DeepEqual(arg.StringOrDefault(), "blah") {
-		t.Fatalf("not equal")
-	}
-}
-
-func TestArgument_String(t *testing.T) {
-	arg := Argument{Name: "test"}
-	if arg.String() != "" {
-		t.Fatalf("expected empty")
-	}
-	arg.value = "blah"
-	if arg.String() == "" {
-		t.Fatal("expected not empty")
-	}
-	if !reflect.DeepEqual(arg.String(), "blah") {
-		t.Fatalf("not equal")
-	}
-}
-
-func TestArgument_BoolOrDefault(t *testing.T) {
-	arg := Argument{Name: "test"}
-	if arg.BoolOrDefault() {
-		t.Fatalf("expected false, got true")
-	}
-	arg.isPresent = true
-	if arg.BoolOrDefault() {
-		t.Fatalf("expected false, got true")
-	}
-	arg.isPresent = false
-	arg.DefaultValue = SimpleValue{true}
-	if !arg.BoolOrDefault() {
-		t.Fatalf("expected true, got false")
 	}
 }
 
@@ -112,19 +71,30 @@ func TestArgument_Set(t *testing.T) {
 	}
 }
 
-func TestArgument_StringSliceOrDefault(t *testing.T) {
-	arg := Argument{Name: "test", DefaultValue: SimpleValue{[]string{"default"}}, TakesValue: true, TakesMultiple: true}
-
-	val := arg.StringSliceOrDefault()
-	if !reflect.DeepEqual(val, []string{"default"}) {
+func TestArgument_String(t *testing.T) {
+	arg := Argument{Name: "test"}
+	if arg.String() != "" {
+		t.Fatalf("expected empty")
+	}
+	arg.value = "blah"
+	if arg.String() == "" {
+		t.Fatal("expected not empty")
+	}
+	if !reflect.DeepEqual(arg.String(), "blah") {
 		t.Fatalf("not equal")
 	}
+}
 
-	if err := arg.Set("notdefault"); err != nil {
-		t.Fatalf("expected no error, got: %v", err)
+func TestArgument_StringOrDefault(t *testing.T) {
+	arg := Argument{Name: "test", DefaultValue: SimpleValue{"default"}}
+	if arg.StringOrDefault() == "" {
+		t.Fatalf("expected not empty")
 	}
-	val = arg.StringSliceOrDefault()
-	if !reflect.DeepEqual(val, []string{"notdefault"}) {
+	arg.value = "blah"
+	if arg.StringOrDefault() == "" {
+		t.Fatal("expected not empty")
+	}
+	if !reflect.DeepEqual(arg.StringOrDefault(), "blah") {
 		t.Fatalf("not equal")
 	}
 }
@@ -152,5 +122,54 @@ func TestArgument_StringSlice(t *testing.T) {
 	}
 	if !reflect.DeepEqual(val, []string{"blah1", "blah2"}) {
 		t.Fatalf("not equal")
+	}
+}
+
+func TestArgument_StringSliceOrDefault(t *testing.T) {
+	arg := Argument{Name: "test", DefaultValue: SimpleValue{[]string{"default"}}, TakesValue: true, TakesMultiple: true}
+
+	val := arg.StringSliceOrDefault()
+	if !reflect.DeepEqual(val, []string{"default"}) {
+		t.Fatalf("not equal")
+	}
+
+	if err := arg.Set("notdefault"); err != nil {
+		t.Fatalf("expected no error, got: %v", err)
+	}
+	val = arg.StringSliceOrDefault()
+	if !reflect.DeepEqual(val, []string{"notdefault"}) {
+		t.Fatalf("not equal")
+	}
+}
+
+func TestArgument_Bool(t *testing.T) {
+	arg := Argument{
+		Name:  "test",
+		value: true,
+	}
+	if arg.Bool() != true {
+		t.Fatalf("expected true, got false")
+	}
+}
+
+func TestArgument_BoolOrDefault(t *testing.T) {
+	arg := Argument{
+		Name: "test",
+	}
+	if arg.BoolOrDefault() {
+		t.Fatalf("expected false, got true")
+	}
+	arg.DefaultValue = SimpleValue{nil}
+	if arg.BoolOrDefault() {
+		t.Fatalf("expected false, got true")
+	}
+	arg.isPresent = true
+	if arg.BoolOrDefault() {
+		t.Fatalf("expected false, got true")
+	}
+	arg.isPresent = false
+	arg.DefaultValue = SimpleValue{true}
+	if !arg.BoolOrDefault() {
+		t.Fatalf("expected true, got false")
 	}
 }

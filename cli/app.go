@@ -11,21 +11,36 @@ var (
 	regArgShort = regexp.MustCompile("^-(a+|b+|c+|d+|e+|f+|g+|h+|i+|j+|k+|l+|m+|n+|o+|p+|q+|r+|s+|t+|u+|v+|w+|x+|y+|z+)(?:=(.+))?$")
 )
 
+func extractArg(s string) []string {
+	if strings.HasPrefix(s, "--") {
+		return regArgLong.FindStringSubmatch(s)
+	}
+	return regArgShort.FindStringSubmatch(s)
+}
+
 type App struct {
-	FuncPreRun      func(c *Context) error
-	FuncPostRun     func(c *Context) error
-	FuncRecover     func(c *Context, r interface{}) error
-	FuncHelpPrinter func(app *App)
+	FuncPreRun      func(*App) error
+	FuncPostRun     func(*App, interface{})
+	FuncRecover     func(*App, interface{})
+	FuncHelpPrinter func(*App)
 
 	args              map[string]*Argument
 	subCommands       map[string]*SubCommand
 	defaultSubCommand string
+
+	// context
+	OriginalArgs       []string
+	SpecificSubCommand *SubCommand
 }
 
 func (app *App) GetArguments() map[string]*Argument {
 	return app.args
 }
 
+// TODO: not sure this is super helpful
+// ie, should apps specifically store their args as variables
+// and refer to them by the variable
+// rather than this getter func
 func (app *App) GetArgument(key string) *Argument {
 	return app.args[key]
 }
@@ -76,37 +91,39 @@ func (app *App) AddSubCommands(commands ...*SubCommand) {
 	}
 }
 
-func doRun(ctx *Context) error {
+func (app *App) Run() error {
 	calledPostRun := false
+	var postRunBlah interface{}
 
-	if ctx.App.FuncRecover != nil {
-		// only recover if recover func set, otherwise lets panic fall through
+	if app.FuncPostRun != nil {
 		defer func() {
-			if r := recover(); r != nil {
-				_ = ctx.App.FuncRecover(ctx, r)
-			}
-			if !calledPostRun && ctx.App.FuncPostRun != nil {
+			if !calledPostRun {
 				calledPostRun = true
-				_ = ctx.App.FuncPostRun(ctx)
+				app.FuncPostRun(app, postRunBlah)
 			}
 		}()
 	}
 
-	if ctx.App.FuncPreRun != nil {
-		if err := ctx.App.FuncPreRun(ctx); err != nil {
+	if app.FuncRecover != nil {
+		// only recover if recover func set, otherwise lets panic fall through
+		defer func() {
+			if r := recover(); r != nil {
+				postRunBlah = r
+				app.FuncRecover(app, r)
+			}
+		}()
+	}
+
+	if app.FuncPreRun != nil {
+		if err := app.FuncPreRun(app); err != nil {
+			postRunBlah = err
 			return err
 		}
 	}
 
-	if ctx.SubCommand.Run != nil {
-		if err := ctx.SubCommand.Run(ctx); err != nil {
-			return err
-		}
-	}
-
-	if ctx.App.FuncPostRun != nil {
-		calledPostRun = true
-		if err := ctx.App.FuncPostRun(ctx); err != nil {
+	if app.SpecificSubCommand != nil && app.SpecificSubCommand.Run != nil {
+		if err := app.SpecificSubCommand.Run(app); err != nil {
+			postRunBlah = err
 			return err
 		}
 	}
@@ -114,34 +131,26 @@ func doRun(ctx *Context) error {
 	return nil
 }
 
-func (app *App) Run(argsToParse []string) error {
-	if len(argsToParse) == 0 {
-		app.PrintHelp()
-		return nil
-	}
+func (app *App) Parse(argsToParse []string) error {
+	// TODO
+	/*
+		if len(argsToParse) == 0 {
+			app.PrintHelp()
+			return nil
+		}
+	*/
 
-	sc, err := app.parse(argsToParse)
+	sc, err := doParse(app, argsToParse)
 	if err != nil {
 		return err
 	}
 
-	ctx := Context{
-		OriginalArguments: argsToParse,
-		App:               app,
-		SubCommand:        *sc,
-	}
+	app.SpecificSubCommand = sc
 
-	return doRun(&ctx)
+	return nil
 }
 
-func extractArg(s string) []string {
-	if strings.HasPrefix(s, "--") {
-		return regArgLong.FindStringSubmatch(s)
-	}
-	return regArgShort.FindStringSubmatch(s)
-}
-
-func (app *App) parse(argsToParse []string) (*SubCommand, error) {
+func doParse(app *App, argsToParse []string) (*SubCommand, error) {
 	for _, arg := range app.args {
 		if arg.PreParse != nil {
 			if err := arg.PreParse(arg, app); err != nil {
@@ -204,7 +213,7 @@ func (app *App) parse(argsToParse []string) (*SubCommand, error) {
 				}
 			}
 			if err := arg.Set(v); err != nil {
-				return sc, fmt.Errorf("error setting argument %s: %w", argLast, err)
+				return sc, fmt.Errorf("error setting argument %q: %w", argLast, err)
 			}
 			argLast = ""
 		} else if sc != nil {

@@ -10,15 +10,15 @@ import (
 
 	"github.com/eggsampler/certgot/cli"
 	"github.com/eggsampler/certgot/log"
-	ini "gopkg.in/ini.v1"
+	"gopkg.in/ini.v1"
 )
 
 var (
-	ALL_FOUR = []string{"cert", "privkey", "chain", "fullchain"}
+	CERT_SECTIONS = []string{"cert", "privkey", "chain", "fullchain"}
 )
 
-func commandCertificates(c *cli.Context) error {
-	renewalDir := filepath.Join(c.GetConfigDirectory(), "renewal")
+func commandCertificates(app *cli.App) error {
+	renewalDir := filepath.Join(argConfigDir.StringOrDefault(), "renewal")
 	renewalConfPattern := filepath.Join(renewalDir, "*.conf")
 	renewalFiles, err := filepath.Glob(renewalConfPattern)
 	if err != nil {
@@ -49,7 +49,7 @@ func commandCertificates(c *cli.Context) error {
 		}
 
 		skip := false
-		for _, v := range ALL_FOUR {
+		for _, v := range CERT_SECTIONS {
 			if !cfg.Section("").HasKey(v) {
 				ll.WithField("section", v).Error("missing required section")
 				fmt.Printf("Renewal configuration file %s is missing required section %q. Skipping.\n", f, v)

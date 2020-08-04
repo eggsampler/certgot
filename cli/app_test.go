@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func Test_parseArg(t *testing.T) {
+func Test_extractArg(t *testing.T) {
 	testList := []struct {
 		testName string
 		arg      string
@@ -61,7 +61,7 @@ func Test_parseArg(t *testing.T) {
 	}
 }
 
-func TestApp_AddArgument(t *testing.T) {
+func TestApp_AddArguments(t *testing.T) {
 	testArg := &Argument{Name: "test1"}
 	testArgShort := &Argument{Name: "test2", AltNames: []string{"t"}}
 
@@ -103,7 +103,8 @@ func TestApp_AddArgument(t *testing.T) {
 		cli.AddArguments(currentTest.arguments...)
 		args := cli.GetArguments()
 		if len(args) != currentTest.expectedCount {
-			t.Fatalf("test %q: expected %d arguments, got: %d", currentTest.testName, currentTest.expectedCount, len(cli.args))
+			t.Fatalf("test %q: expected %d arguments, got: %d",
+				currentTest.testName, currentTest.expectedCount, len(cli.args))
 		}
 
 		keyMap := map[string]bool{}
@@ -122,7 +123,8 @@ func TestApp_AddArgument(t *testing.T) {
 			for _, vv := range v.AltNames {
 				_, ok = args[vv]
 				if !ok {
-					t.Fatalf("test %q: args not equal, doesn't contain arg alt name: %q", currentTest.testName, v.Name)
+					t.Fatalf("test %q: args not equal, doesn't contain arg alt name: %q",
+						currentTest.testName, v.Name)
 				}
 				keyMap[vv] = true
 			}
@@ -135,7 +137,7 @@ func TestApp_AddArgument(t *testing.T) {
 	}
 }
 
-func TestApp_AddSubCommand(t *testing.T) {
+func TestApp_AddSubCommands(t *testing.T) {
 	testList := []struct {
 		testName      string
 		subCommands   []*SubCommand
@@ -159,7 +161,8 @@ func TestApp_AddSubCommand(t *testing.T) {
 		cli.AddSubCommands(currentTest.subCommands...)
 		subCmds := cli.GetSubCommands()
 		if len(subCmds) != currentTest.expectedCount {
-			t.Fatalf("test %q: expected %d arguments, got: %d", currentTest.testName, currentTest.expectedCount, len(cli.args))
+			t.Fatalf("test %q: expected %d arguments, got: %d",
+				currentTest.testName, currentTest.expectedCount, len(cli.args))
 		}
 
 		keyMap := map[string]bool{}
@@ -172,19 +175,150 @@ func TestApp_AddSubCommand(t *testing.T) {
 			}
 			_, ok := subCmds[v.Name]
 			if !ok {
-				t.Fatalf("test %q: subcommands not equal, doesn't contain subcommands name: %q", currentTest.testName, v.Name)
+				t.Fatalf("test %q: subcommands not equal, doesn't contain subcommands name: %q",
+					currentTest.testName, v.Name)
 			}
 			keyMap[v.Name] = true
 		}
 		for k, v := range keyMap {
 			if !v {
-				t.Fatalf("test %q: subcommands not equal, didn't contain subcommands name: %q", currentTest.testName, k)
+				t.Fatalf("test %q: subcommands not equal, didn't contain subcommands name: %q",
+					currentTest.testName, k)
 			}
 		}
 	}
 }
 
-func TestApp_Parse(t *testing.T) {
+func TestApp_Run(t *testing.T) {
+	testList := []struct {
+		testName   string
+		app        *App
+		subCommand *SubCommand
+		hasError   bool
+		errorStr   string
+	}{
+		{
+			testName: "empty app",
+			app:      &App{},
+		},
+		{
+			testName: "app recover",
+			app: &App{
+				FuncRecover: func(app *App, r interface{}) {
+					s := fmt.Sprintf("%s", r)
+					if s != "HELLO WORLD!" {
+						panic("unknown panic recovered")
+					}
+				},
+			},
+			subCommand: &SubCommand{Run: func(app *App) error {
+				panic("HELLO WORLD!")
+			}},
+		},
+		{
+			testName: "app recover postrun 1",
+			app: &App{
+				FuncPostRun: func(app *App, r interface{}) {
+					s := fmt.Sprintf("%s", r)
+					if s != "HELLO WORLD!" {
+						panic("unknown panic message: " + s)
+					}
+				},
+				FuncRecover: func(app *App, r interface{}) {
+					s := fmt.Sprintf("%s", r)
+					if s != "HELLO WORLD!" {
+						panic("unknown panic recovered: " + s)
+					}
+				},
+			},
+			subCommand: &SubCommand{Run: func(app *App) error {
+				panic("HELLO WORLD!")
+			}},
+		},
+		{
+			testName: "app recover postrun 2",
+			app: &App{
+				FuncPostRun: func(app *App, r interface{}) {
+					s := fmt.Sprintf("%s", r)
+					if s != "HELLO WORLD!" {
+						panic("unknown panic message: " + s)
+					}
+				},
+				FuncRecover: func(app *App, r interface{}) {
+					s := fmt.Sprintf("%s", r)
+					if s != "HELLO WORLD!" {
+						panic("unknown panic recovered: " + s)
+					}
+				},
+			},
+			subCommand: &SubCommand{Run: func(app *App) error {
+				panic("HELLO WORLD!")
+			}},
+		},
+		{
+			testName: "prefunc succeed",
+			app: &App{
+				FuncPreRun: func(app *App) error {
+					return nil
+				},
+			},
+		},
+		{
+			testName: "prefunc fail",
+			app: &App{
+				FuncPreRun: func(app *App) error {
+					return errors.New("prefunc funky")
+				},
+			},
+			hasError: true,
+			errorStr: "prefunc funky",
+		},
+		{
+			testName: "SubCommand succeed",
+			app:      &App{},
+			subCommand: &SubCommand{
+				Run: func(app *App) error {
+					return nil
+				},
+			},
+		},
+		{
+			testName: "SubCommand fail",
+			app:      &App{},
+			subCommand: &SubCommand{
+				Run: func(app *App) error {
+					return errors.New("subcommand funky")
+				},
+			},
+			hasError: true,
+			errorStr: "subcommand funky",
+		},
+		{
+			testName: "postfunc",
+			app: &App{
+				FuncPostRun: func(app *App, r interface{}) {
+					// hello world
+				},
+			},
+		},
+	}
+
+	for _, currentTest := range testList {
+		if currentTest.subCommand != nil {
+			currentTest.app.AddSubCommand(currentTest.subCommand)
+			currentTest.app.SpecificSubCommand = currentTest.subCommand
+		}
+		err := currentTest.app.Run()
+		if currentTest.hasError == (err == nil) {
+			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
+		}
+		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
+			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
+		}
+	}
+}
+
+func Test_doParse(t *testing.T) {
 	testList := []struct {
 		testName       string
 		appSubCommands []*SubCommand
@@ -339,9 +473,14 @@ func TestApp_Parse(t *testing.T) {
 		},
 		{
 			testName: "onpresent func fail",
-			appArguments: []*Argument{{Name: "hello", OnPresent: func(arg *Argument, argString string, repeatCount int, app *App) error {
-				return errors.New("hello world")
-			}}},
+			appArguments: []*Argument{
+				{
+					Name: "hello",
+					OnPresent: func(arg *Argument, argString string, repeatCount int, app *App) error {
+						return errors.New("hello world")
+					},
+				},
+			},
 			argsToParse: []string{"--hello"},
 			hasError:    true,
 			errorStr:    "hello world",
@@ -424,7 +563,7 @@ func TestApp_Parse(t *testing.T) {
 		app := App{}
 		app.AddSubCommands(currentTest.appSubCommands...)
 		app.AddArguments(currentTest.appArguments...)
-		sc, err := app.parse(currentTest.argsToParse)
+		sc, err := doParse(&app, currentTest.argsToParse)
 		if currentTest.hasError == (err == nil) {
 			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
 		}
@@ -435,143 +574,6 @@ func TestApp_Parse(t *testing.T) {
 			if err := currentTest.checkFunc(sc, app.args); err != nil {
 				t.Fatalf("test %q: check: %v", currentTest.testName, err)
 			}
-		}
-	}
-}
-
-func TestApp_doRun(t *testing.T) {
-	testList := []struct {
-		testName   string
-		app        *App
-		subCommand SubCommand
-		hasError   bool
-		errorStr   string
-	}{
-		{
-			testName: "empty app",
-			app:      &App{},
-		},
-		{
-			testName: "app recover",
-			app: &App{
-				FuncRecover: func(c *Context, r interface{}) error {
-					s := fmt.Sprintf("%s", r)
-					if s == "HELLO WORLD!" {
-						return nil
-					}
-					return errors.New("unknown panic recovered")
-				},
-			},
-			subCommand: SubCommand{Run: func(c *Context) error {
-				panic("HELLO WORLD!")
-			}},
-		},
-		{
-			testName: "app recover postrun 1",
-			app: &App{
-				FuncPostRun: func(c *Context) error {
-					return nil
-				},
-				FuncRecover: func(c *Context, r interface{}) error {
-					s := fmt.Sprintf("%s", r)
-					if s == "HELLO WORLD!" {
-						return nil
-					}
-					return errors.New("unknown panic recovered")
-				},
-			},
-			subCommand: SubCommand{Run: func(c *Context) error {
-				panic("HELLO WORLD!")
-			}},
-		},
-		{
-			testName: "app recover postrun 2",
-			app: &App{
-				FuncPostRun: func(c *Context) error {
-					// this wont actually return anywhere as it's returned in the defer func
-					return errors.New("ok")
-				},
-				FuncRecover: func(c *Context, r interface{}) error {
-					s := fmt.Sprintf("%s", r)
-					if s == "HELLO WORLD!" {
-						return nil
-					}
-					return errors.New("unknown panic recovered")
-				},
-			},
-			subCommand: SubCommand{Run: func(c *Context) error {
-				panic("HELLO WORLD!")
-			}},
-		},
-		{
-			testName: "prefunc succeed",
-			app: &App{
-				FuncPreRun: func(c *Context) error {
-					return nil
-				},
-			},
-		},
-		{
-			testName: "prefunc fail",
-			app: &App{
-				FuncPreRun: func(c *Context) error {
-					return errors.New("prefunc funky")
-				},
-			},
-			hasError: true,
-			errorStr: "prefunc funky",
-		},
-		{
-			testName: "SubCommand succeed",
-			app:      &App{},
-			subCommand: SubCommand{
-				Run: func(c *Context) error {
-					return nil
-				},
-			},
-		},
-		{
-			testName: "SubCommand fail",
-			app:      &App{},
-			subCommand: SubCommand{
-				Run: func(c *Context) error {
-					return errors.New("subcommand funky")
-				},
-			},
-			hasError: true,
-			errorStr: "subcommand funky",
-		},
-		{
-			testName: "postfunc succeed",
-			app: &App{
-				FuncPostRun: func(c *Context) error {
-					return nil
-				},
-			},
-		},
-		{
-			testName: "postfunc fail",
-			app: &App{
-				FuncPostRun: func(c *Context) error {
-					return errors.New("postfunc funky")
-				},
-			},
-			hasError: true,
-			errorStr: "postfunc funky",
-		},
-	}
-
-	for _, currentTest := range testList {
-		ctx := Context{
-			App:        currentTest.app,
-			SubCommand: currentTest.subCommand,
-		}
-		err := doRun(&ctx)
-		if currentTest.hasError == (err == nil) {
-			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
-		}
-		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
-			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
 		}
 	}
 }

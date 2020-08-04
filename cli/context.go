@@ -1,6 +1,6 @@
 package cli
 
-import "github.com/eggsampler/certgot/constants"
+/*
 
 type Context struct {
 	OriginalArguments []string
@@ -19,3 +19,6 @@ func (c Context) GetDirectories() []string {
 func (c Context) GetConfigDirectory() string {
 	return c.App.GetArgument(constants.ARG_CONFIGDIR).StringOrDefault()
 }
+
+
+*/
