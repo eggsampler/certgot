@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,18 +13,26 @@ import (
 )
 
 var (
-	configLine = regexp.MustCompile(`([a-zA-Z\-]+)(?:\s*=\s*(.+))?`)
+	configLine = regexp.MustCompile(`^([a-zA-Z\-]+)(?:\s*=\s*(.+))?$`)
 )
 
-func (app *App) LoadConfig(argCfg *Argument) error {
-	cfg := map[string]configEntry{}
-	for _, fileName := range argCfg.StringSliceOrDefault() {
-		// skip file not found errors if config is default cfg files
-		if !argCfg.isPresent && !fileExists(fileName) {
-			continue
+func (app *App) LoadConfig(cfgFile *Argument) error {
+	var cfg []configEntry
+	for _, fileName := range cfgFile.StringSliceOrDefault() {
+		fileName = parsePath(fileName)
+		f, err := os.Open(fileName)
+		if err != nil {
+			// skip file not found errors if config is default cfg files
+			if !cfgFile.isPresent && errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return fmt.Errorf("error opening config file %q: %w", fileName, err)
 		}
-		if err := parseConfigFile(cfg, fileName); err != nil {
+		defer f.Close()
+		if c, err := parseConfig(f, fileName); err != nil {
 			return err
+		} else {
+			cfg = append(cfg, c...)
 		}
 	}
 	return setConfig(cfg, app.args)
@@ -37,20 +46,8 @@ type configEntry struct {
 	value    string
 }
 
-func parseConfigFile(cfg map[string]configEntry, fileName string) error {
-	fileName = parsePath(fileName)
-	if !fileExists(fileName) {
-		return fmt.Errorf("error loading config file %s: %w", fileName, os.ErrNotExist)
-	}
-	f, err := os.Open(fileName)
-	if err != nil {
-		return fmt.Errorf("error opening config file %s - %v", fileName, err)
-	}
-	defer f.Close()
-	return parseConfig(cfg, f, fileName)
-}
-
-func parseConfig(cfg map[string]configEntry, r io.Reader, fileName string) error {
+func parseConfig(r io.Reader, fileName string) ([]configEntry, error) {
+	var cfg []configEntry
 	lineNumber := 0
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
@@ -61,7 +58,7 @@ func parseConfig(cfg map[string]configEntry, r io.Reader, fileName string) error
 		}
 		m := configLine.FindStringSubmatch(line)
 		if m == nil {
-			return fmt.Errorf("invalid argument %q on line %d in config file: %s", line, lineNumber, fileName)
+			return nil, fmt.Errorf("invalid argument %q on line %d in config file: %s", line, lineNumber, fileName)
 		}
 		entry := configEntry{
 			fileName: fileName,
@@ -72,27 +69,28 @@ func parseConfig(cfg map[string]configEntry, r io.Reader, fileName string) error
 			entry.hasValue = true
 			entry.value = m[2]
 		}
-		cfg[entry.key] = entry
+		cfg = append(cfg, entry)
 	}
-	return nil
+	return cfg, nil
 }
 
-func setConfig(config map[string]configEntry, args map[string]*Argument) error {
-	for key, entry := range config {
-		arg, ok := args[key]
+func setConfig(config []configEntry, args map[string]*Argument) error {
+	for _, entry := range config {
+		arg, ok := args[entry.key]
 		if !ok {
-			return fmt.Errorf("unknown argument %s on line %d in config file: %s", key, entry.line, entry.fileName)
+			return fmt.Errorf("unknown argument %s on line %d in config file: %s", entry.key, entry.line, entry.fileName)
 		}
 		arg.isPresent = true
 		if entry.hasValue {
 			if err := arg.Set(entry.value); err != nil {
-				return fmt.Errorf("error setting argument %q to value %q: %v", key, entry.value, err)
+				return fmt.Errorf("error setting argument %q to value %q: %v", entry.key, entry.value, err)
 			}
 		}
 	}
 	return nil
 }
 
+// parsePath takes a path string which might begin with a ~ and attempts to replace it with the users home directory
 func parsePath(path string) string {
 	if !strings.HasPrefix(path, "~") {
 		return filepath.Clean(path)
@@ -100,7 +98,7 @@ func parsePath(path string) string {
 	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
 		return filepath.Join(xdgConfigHome + path[1:])
 	}
-	if u, err := user.Current(); err != nil {
+	if u, err := user.Current(); err == nil {
 		return filepath.Join(u.HomeDir, path[1:])
 	}
 	if home := os.Getenv("HOME"); home != "" {
@@ -113,9 +111,4 @@ func parsePath(path string) string {
 		return filepath.Join(home, path[1:])
 	}
 	return filepath.Clean(path)
-}
-
-func fileExists(f string) bool {
-	_, err := os.Stat(f)
-	return err == nil || os.IsExist(err) || !os.IsNotExist(err)
 }

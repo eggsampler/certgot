@@ -34,8 +34,13 @@ func init() {
 	SetLevel(Level(i))
 }
 
-func parseKV(key, value interface{}) string {
-	return fmt.Sprintf("%s=\"%v\"", key, value)
+func parseKV(key, value interface{}, verbosity int) string {
+	if verbosity <= 0 {
+		return fmt.Sprintf(`%s="%v"`, key, value)
+	} else if verbosity == 1 {
+		return fmt.Sprintf(`%s="%+v"`, key, value)
+	} // else if verbosity >= 2 {
+	return fmt.Sprintf(`%s="%#v"`, key, value)
 }
 
 func log(level Level, msg string, fields []string) {

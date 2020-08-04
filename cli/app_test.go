@@ -51,13 +51,15 @@ func Test_extractArg(t *testing.T) {
 	}
 
 	for _, currentTest := range testList {
-		m := extractArg(currentTest.arg)
-		if currentTest.matches && m == nil {
-			t.Fatalf("test %q: expected match for arg %q, got none", currentTest.testName, currentTest.arg)
-		}
-		if !currentTest.matches && m != nil {
-			t.Fatalf("test %q: expected no match for arg %q, got: %s", currentTest.testName, currentTest.arg, m)
-		}
+		t.Run(currentTest.testName, func(t *testing.T) {
+			m := extractArg(currentTest.arg)
+			if currentTest.matches && m == nil {
+				t.Fatalf("test %q: expected match for arg %q, got none", currentTest.testName, currentTest.arg)
+			}
+			if !currentTest.matches && m != nil {
+				t.Fatalf("test %q: expected no match for arg %q, got: %s", currentTest.testName, currentTest.arg, m)
+			}
+		})
 	}
 }
 
@@ -99,41 +101,43 @@ func TestApp_AddArguments(t *testing.T) {
 	}
 
 	for _, currentTest := range testList {
-		cli := App{}
-		cli.AddArguments(currentTest.arguments...)
-		args := cli.GetArguments()
-		if len(args) != currentTest.expectedCount {
-			t.Fatalf("test %q: expected %d arguments, got: %d",
-				currentTest.testName, currentTest.expectedCount, len(cli.args))
-		}
+		t.Run(currentTest.testName, func(t *testing.T) {
+			cli := App{}
+			cli.AddArguments(currentTest.arguments...)
+			args := cli.GetArguments()
+			if len(args) != currentTest.expectedCount {
+				t.Fatalf("test %q: expected %d arguments, got: %d",
+					currentTest.testName, currentTest.expectedCount, len(cli.args))
+			}
 
-		keyMap := map[string]bool{}
-		for k := range args {
-			keyMap[k] = false
-		}
-		for _, v := range currentTest.arguments {
-			if v == nil {
-				continue
+			keyMap := map[string]bool{}
+			for k := range args {
+				keyMap[k] = false
 			}
-			_, ok := args[v.Name]
-			if !ok {
-				t.Fatalf("test %q: args not equal, doesn't contain arg name: %q", currentTest.testName, v.Name)
-			}
-			keyMap[v.Name] = true
-			for _, vv := range v.AltNames {
-				_, ok = args[vv]
-				if !ok {
-					t.Fatalf("test %q: args not equal, doesn't contain arg alt name: %q",
-						currentTest.testName, v.Name)
+			for _, v := range currentTest.arguments {
+				if v == nil {
+					continue
 				}
-				keyMap[vv] = true
+				_, ok := args[v.Name]
+				if !ok {
+					t.Fatalf("test %q: args not equal, doesn't contain arg name: %q", currentTest.testName, v.Name)
+				}
+				keyMap[v.Name] = true
+				for _, vv := range v.AltNames {
+					_, ok = args[vv]
+					if !ok {
+						t.Fatalf("test %q: args not equal, doesn't contain arg alt name: %q",
+							currentTest.testName, v.Name)
+					}
+					keyMap[vv] = true
+				}
 			}
-		}
-		for k, v := range keyMap {
-			if !v {
-				t.Fatalf("test %q: args not equal, didn't contain arg name: %q", currentTest.testName, k)
+			for k, v := range keyMap {
+				if !v {
+					t.Fatalf("test %q: args not equal, didn't contain arg name: %q", currentTest.testName, k)
+				}
 			}
-		}
+		})
 	}
 }
 
@@ -157,35 +161,37 @@ func TestApp_AddSubCommands(t *testing.T) {
 	}
 
 	for _, currentTest := range testList {
-		cli := App{}
-		cli.AddSubCommands(currentTest.subCommands...)
-		subCmds := cli.GetSubCommands()
-		if len(subCmds) != currentTest.expectedCount {
-			t.Fatalf("test %q: expected %d arguments, got: %d",
-				currentTest.testName, currentTest.expectedCount, len(cli.args))
-		}
+		t.Run(currentTest.testName, func(t *testing.T) {
+			cli := App{}
+			cli.AddSubCommands(currentTest.subCommands...)
+			subCmds := cli.GetSubCommands()
+			if len(subCmds) != currentTest.expectedCount {
+				t.Fatalf("test %q: expected %d arguments, got: %d",
+					currentTest.testName, currentTest.expectedCount, len(cli.args))
+			}
 
-		keyMap := map[string]bool{}
-		for k := range subCmds {
-			keyMap[k] = false
-		}
-		for _, v := range currentTest.subCommands {
-			if v == nil {
-				continue
+			keyMap := map[string]bool{}
+			for k := range subCmds {
+				keyMap[k] = false
 			}
-			_, ok := subCmds[v.Name]
-			if !ok {
-				t.Fatalf("test %q: subcommands not equal, doesn't contain subcommands name: %q",
-					currentTest.testName, v.Name)
+			for _, v := range currentTest.subCommands {
+				if v == nil {
+					continue
+				}
+				_, ok := subCmds[v.Name]
+				if !ok {
+					t.Fatalf("test %q: subcommands not equal, doesn't contain subcommands name: %q",
+						currentTest.testName, v.Name)
+				}
+				keyMap[v.Name] = true
 			}
-			keyMap[v.Name] = true
-		}
-		for k, v := range keyMap {
-			if !v {
-				t.Fatalf("test %q: subcommands not equal, didn't contain subcommands name: %q",
-					currentTest.testName, k)
+			for k, v := range keyMap {
+				if !v {
+					t.Fatalf("test %q: subcommands not equal, didn't contain subcommands name: %q",
+						currentTest.testName, k)
+				}
 			}
-		}
+		})
 	}
 }
 
@@ -304,17 +310,19 @@ func TestApp_Run(t *testing.T) {
 	}
 
 	for _, currentTest := range testList {
-		if currentTest.subCommand != nil {
-			currentTest.app.AddSubCommand(currentTest.subCommand)
-			currentTest.app.SpecificSubCommand = currentTest.subCommand
-		}
-		err := currentTest.app.Run()
-		if currentTest.hasError == (err == nil) {
-			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
-		}
-		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
-			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
-		}
+		t.Run(currentTest.testName, func(t *testing.T) {
+			if currentTest.subCommand != nil {
+				currentTest.app.AddSubCommand(currentTest.subCommand)
+				currentTest.app.SpecificSubCommand = currentTest.subCommand
+			}
+			err := currentTest.app.Run()
+			if currentTest.hasError == (err == nil) {
+				t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
+			}
+			if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
+				t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
+			}
+		})
 	}
 }
 
@@ -560,20 +568,22 @@ func Test_doParse(t *testing.T) {
 	}
 
 	for _, currentTest := range testList {
-		app := App{}
-		app.AddSubCommands(currentTest.appSubCommands...)
-		app.AddArguments(currentTest.appArguments...)
-		sc, err := doParse(&app, currentTest.argsToParse)
-		if currentTest.hasError == (err == nil) {
-			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
-		}
-		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
-			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
-		}
-		if currentTest.checkFunc != nil {
-			if err := currentTest.checkFunc(sc, app.args); err != nil {
-				t.Fatalf("test %q: check: %v", currentTest.testName, err)
+		t.Run(currentTest.testName, func(t *testing.T) {
+			app := App{}
+			app.AddSubCommands(currentTest.appSubCommands...)
+			app.AddArguments(currentTest.appArguments...)
+			sc, err := doParse(&app, currentTest.argsToParse)
+			if currentTest.hasError == (err == nil) {
+				t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
 			}
-		}
+			if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
+				t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
+			}
+			if currentTest.checkFunc != nil {
+				if err := currentTest.checkFunc(sc, app.args); err != nil {
+					t.Fatalf("test %q: check: %v", currentTest.testName, err)
+				}
+			}
+		})
 	}
 }

@@ -9,7 +9,7 @@ import (
 )
 
 func Test_parseConfig(t *testing.T) {
-	emptyCfg := func(cfg map[string]configEntry) error {
+	emptyCfg := func(cfg []configEntry) error {
 		if len(cfg) != 0 {
 			return fmt.Errorf("unexpected config: %v", cfg)
 		}
@@ -22,7 +22,7 @@ func Test_parseConfig(t *testing.T) {
 		fileName     string
 		hasError     bool
 		errorStr     string
-		checkFunc    func(cfg map[string]configEntry) error
+		checkFunc    func(cfg []configEntry) error
 	}{
 		{
 			testName:  "empty config",
@@ -43,14 +43,11 @@ func Test_parseConfig(t *testing.T) {
 			testName:     "config w/ value",
 			configString: "hello=world",
 			fileName:     "hi2u",
-			checkFunc: func(cfg map[string]configEntry) error {
+			checkFunc: func(cfg []configEntry) error {
 				if len(cfg) != 1 {
 					return errors.New("not 1 config")
 				}
-				entry, ok := cfg["hello"]
-				if !ok {
-					return errors.New("no hello entry")
-				}
+				entry := cfg[0]
 				otherEntry := configEntry{
 					fileName: "hi2u",
 					line:     1,
@@ -68,14 +65,11 @@ func Test_parseConfig(t *testing.T) {
 			testName:     "config w/o value",
 			configString: "hello",
 			fileName:     "hi2u2",
-			checkFunc: func(cfg map[string]configEntry) error {
+			checkFunc: func(cfg []configEntry) error {
 				if len(cfg) != 1 {
 					return errors.New("not 1 config")
 				}
-				entry, ok := cfg["hello"]
-				if !ok {
-					return errors.New("no hello entry")
-				}
+				entry := cfg[0]
 				otherEntry := configEntry{
 					fileName: "hi2u2",
 					line:     1,
@@ -90,8 +84,7 @@ func Test_parseConfig(t *testing.T) {
 	}
 
 	for _, currentTest := range testList {
-		cfg := map[string]configEntry{}
-		err := parseConfig(cfg, strings.NewReader(currentTest.configString), currentTest.fileName)
+		cfg, err := parseConfig(strings.NewReader(currentTest.configString), currentTest.fileName)
 		if currentTest.hasError == (err == nil) {
 			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
 		}
@@ -109,7 +102,7 @@ func Test_parseConfig(t *testing.T) {
 func Test_setConfig(t *testing.T) {
 	testList := []struct {
 		testName  string
-		config    map[string]configEntry
+		config    []configEntry
 		args      map[string]*Argument
 		hasError  bool
 		errorStr  string
@@ -118,13 +111,13 @@ func Test_setConfig(t *testing.T) {
 		{testName: "empty"},
 		{
 			testName: "no arg for cfg",
-			config:   map[string]configEntry{"hello": {}},
+			config:   []configEntry{{}},
 			hasError: true,
 			errorStr: "unknown argument",
 		},
 		{
 			testName: "set arg",
-			config:   map[string]configEntry{"hello": {hasValue: true, value: "world"}},
+			config:   []configEntry{{key: "hello", hasValue: true, value: "world"}},
 			args: map[string]*Argument{"hello": {
 				TakesValue: true,
 			}},
@@ -139,7 +132,7 @@ func Test_setConfig(t *testing.T) {
 		},
 		{
 			testName: "set arg fail",
-			config:   map[string]configEntry{"hello": {hasValue: true, value: "world"}},
+			config:   []configEntry{{key: "hello", hasValue: true, value: "world"}},
 			args:     map[string]*Argument{"hello": {}},
 			hasError: true,
 			errorStr: "error setting arg",

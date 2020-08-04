@@ -29,11 +29,11 @@ func SetOutputFile(file string) {
 }
 
 func WithError(err error) Entry {
-	return Entry{parseKV("error", err)}
+	return Entry{parseKV("error", err, 0)}
 }
 
 func WithField(key string, value interface{}) Entry {
-	return Entry{parseKV(key, value)}
+	return Entry{parseKV(key, value, 0)}
 }
 
 func WithFields(fields ...interface{}) Entry {
@@ -45,7 +45,7 @@ func WithFields(fields ...interface{}) Entry {
 		if i+1 == len(fields) {
 			break
 		}
-		entry = append(entry, parseKV(fields[i], fields[i+1]))
+		entry = append(entry, parseKV(fields[i], fields[i+1], 0))
 	}
 	return entry
 }

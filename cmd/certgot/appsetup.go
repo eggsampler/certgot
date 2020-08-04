@@ -1,38 +1,31 @@
 package main
 
 import (
-	"path/filepath"
-
 	"github.com/eggsampler/certgot/constants"
 
 	"github.com/eggsampler/certgot/cli"
 )
 
-// TODO: os specific paths
-
 var (
 	argConfig = cli.Argument{
-		Name:     constants.ARG_CONFIG,
-		AltNames: []string{"c"},
-		DefaultValue: &cli.SimpleValue{Value: []string{
-			filepath.Join(string(filepath.Separator), "etc", "letsencrypt", "cli.ini"),
-			filepath.Join("~", ".config", "letsencrypt", "cli.ini"),
-		}},
-		TakesValue: true,
+		Name:         constants.ARG_CONFIG,
+		AltNames:     []string{"c"},
+		DefaultValue: &cli.SimpleValue{Value: defaultConfigFiles},
+		TakesValue:   true,
 	}
 	argWorkDir = cli.Argument{
 		Name:         constants.ARG_WORKDIR,
-		DefaultValue: &cli.SimpleValue{Value: filepath.Join("var", "lib", "letsencrypt")},
+		DefaultValue: &cli.SimpleValue{Value: defaultWorkDir},
 		TakesValue:   true,
 	}
 	argLogsDir = cli.Argument{
 		Name:         constants.ARG_LOGSDIR,
-		DefaultValue: &cli.SimpleValue{Value: filepath.Join("var", "logs", "letsencrypt")},
+		DefaultValue: &cli.SimpleValue{Value: defaultLogsDir},
 		TakesValue:   true,
 	}
 	argConfigDir = cli.Argument{
 		Name:         constants.ARG_CONFIGDIR,
-		DefaultValue: &cli.SimpleValue{Value: filepath.Join("etc", "letsencrypt")},
+		DefaultValue: &cli.SimpleValue{Value: defaultConfigDir},
 		TakesValue:   true,
 	}
 

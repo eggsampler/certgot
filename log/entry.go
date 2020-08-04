@@ -11,7 +11,7 @@ func (l Entry) WithError(err error) Entry {
 }
 
 func (l Entry) WithField(key string, value interface{}) Entry {
-	return append(l, parseKV(key, value))
+	return append(l, parseKV(key, value, 0))
 }
 
 func (l Entry) WithFields(fields ...interface{}) Entry {

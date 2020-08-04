@@ -60,7 +60,7 @@ func (lv *ListValue) Get() interface{} {
 		fmt.Printf("%d: %s (%v)\n", k+1, v.Option, v.Value)
 	}
 	fmt.Println(strings.Repeat("- ", 40))
-	fmt.Println("Select the appropriate number [1-2] then [enter] (press 'c' to cancel): ")
+	fmt.Printf("Select the appropriate number [1-%d] then [enter] (press 'c' to cancel): ", len(lv.Options))
 	num, _ := strconv.Atoi(readLine(lv.Cancel))
 	if num <= 0 || num > len(lv.Options) {
 		fmt.Println("Invalid value")
