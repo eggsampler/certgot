@@ -1,0 +1,29 @@
+{
+package ini
+}
+
+INI = whitespace* val:Elements whitespace* EOF
+
+Elements = ( Section / Property )*
+
+Section = '[' val:( !']' . )+ ']'
+{
+    return nil, nil
+}
+
+Property = Key '=' Value
+
+Key = ( ![=;] . )+
+{
+    return string(c.text), nil
+}
+
+Value = ( !newline .)+
+{
+    return string(c.text), nil
+}
+
+space "space" = [ \t]
+newline "newline" = [\r\n]
+whitespace "whitespace" = space / newline
+EOF = !.
