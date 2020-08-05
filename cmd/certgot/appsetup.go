@@ -69,6 +69,21 @@ var (
 			},
 		},
 	}
+
+	helpTopics = []cli.HelpTopic{
+		{
+			Topics:          []string{"usage"},
+			Name:            "usage",
+			Description:     "certgot [SUBCOMMAND] [options] [-d DOMAIN] [-d DOMAIN] ...",
+			LongDescription: "Certgot can obtain and install HTTPS/TLS/SSL certificates. By default, it will attempt to use a webserver both for obtaining and installing the certificate. The most common SUBCOMMANDS and flags are:",
+			ShowFunc:        cli.ShowNotSubcommand,
+		},
+		{
+			Topics:   []string{"common"},
+			Name:     "obtain, install, and renew certificates",
+			ShowFunc: cli.ShowNoTopic,
+		},
+	}
 )
 
 func setupSubCommands(app *cli.App) {
@@ -100,4 +115,8 @@ func setupArguments(app *cli.App) {
 		&argStandAlone,
 		&argWebRoot,
 		&argAuthenticator)
+}
+
+func setupHelp(app *cli.App) {
+	app.AddHelpTopics(helpTopics...)
 }

@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,28 +14,6 @@ import (
 var (
 	configLine = regexp.MustCompile(`^([a-zA-Z\-]+)(?:\s*=\s*(.+))?$`)
 )
-
-func (app *App) LoadConfig(cfgFile *Argument) error {
-	var cfg []configEntry
-	for _, fileName := range cfgFile.StringSliceOrDefault() {
-		fileName = parsePath(fileName)
-		f, err := os.Open(fileName)
-		if err != nil {
-			// skip file not found errors if config is default cfg files
-			if !cfgFile.isPresent && errors.Is(err, os.ErrNotExist) {
-				continue
-			}
-			return fmt.Errorf("error opening config file %q: %w", fileName, err)
-		}
-		defer f.Close()
-		if c, err := parseConfig(f, fileName); err != nil {
-			return err
-		} else {
-			cfg = append(cfg, c...)
-		}
-	}
-	return setConfig(cfg, app.args)
-}
 
 type configEntry struct {
 	fileName string

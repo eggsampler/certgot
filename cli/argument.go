@@ -13,6 +13,7 @@ type Argument struct {
 	TakesValue    bool
 	RepeatCount   int
 	TakesMultiple bool
+	HelpTopic     string
 
 	PreParse  func(arg *Argument, app *App) error
 	OnPresent func(arg *Argument, argString string, repeatCount int, app *App) error

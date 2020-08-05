@@ -21,6 +21,7 @@ func main() {
 		app.FuncRecover = doRecover
 	}
 
+	setupHelp(app)
 	setupSubCommands(app)
 	setupArguments(app)
 

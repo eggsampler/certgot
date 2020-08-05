@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -43,10 +44,30 @@ func parseKV(key, value interface{}, verbosity int) string {
 	return fmt.Sprintf(`%s="%#v"`, key, value)
 }
 
+func traceFunc() string {
+	// todo: use runtime.callers and not hardcode the skip to find first one outside of log package?
+	pc, file, line, ok := runtime.Caller(4)
+	if !ok {
+		return "unknown"
+	}
+	f := runtime.FuncForPC(pc)
+	return fmt.Sprintf("%s:%d %s", stripPkg(file), line, stripPkg(f.Name()))
+}
+
+func stripPkg(s string) string {
+	const pkg = "github.com/eggsampler/certgot/"
+	n := strings.LastIndex(s, pkg)
+	if n < 0 {
+		return s
+	}
+	return s[n+len(pkg):]
+}
+
 func log(level Level, msg string, fields []string) {
-	fmsg := fmt.Sprintf("%s[%s] msg=%q %s",
+	fmsg := fmt.Sprintf("%s[%s] {%s} msg=%q %s",
 		levels[level],
 		time.Now().Format("2006-01-02 15:04:05 -0700"),
+		traceFunc(),
 		msg,
 		strings.Join(fields, " "))
 

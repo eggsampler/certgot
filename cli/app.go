@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -18,6 +20,13 @@ func extractArg(s string) []string {
 	return regArgShort.FindStringSubmatch(s)
 }
 
+type SubCommand struct {
+	Name      string
+	Default   bool
+	Run       func(app *App) error
+	HelpTopic HelpTopic
+}
+
 type App struct {
 	FuncPreRun      func(*App) error
 	FuncPostRun     func(*App, interface{})
@@ -27,6 +36,7 @@ type App struct {
 	args              map[string]*Argument
 	subCommands       map[string]*SubCommand
 	defaultSubCommand string
+	helpTopics        []HelpTopic
 
 	// context
 	OriginalArgs       []string
@@ -80,6 +90,7 @@ func (app *App) AddSubCommand(subCommand *SubCommand) {
 	if subCommand.Default {
 		app.defaultSubCommand = subCommand.Name
 	}
+	app.AddHelpTopic(subCommand.HelpTopic)
 }
 
 func (app *App) AddSubCommands(commands ...*SubCommand) {
@@ -126,6 +137,8 @@ func (app *App) Run() error {
 			postRunBlah = err
 			return err
 		}
+	} else {
+		app.PrintHelp()
 	}
 
 	return nil
@@ -241,6 +254,28 @@ func doParse(app *App, argsToParse []string) (*SubCommand, error) {
 	return sc, nil
 }
 
+func (app *App) LoadConfig(cfgFile *Argument) error {
+	var cfg []configEntry
+	for _, fileName := range cfgFile.StringSliceOrDefault() {
+		fileName = parsePath(fileName)
+		f, err := os.Open(fileName)
+		if err != nil {
+			// skip file not found errors if config is default cfg files
+			if !cfgFile.isPresent && errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return fmt.Errorf("error opening config file %q: %w", fileName, err)
+		}
+		defer f.Close()
+		if c, err := parseConfig(f, fileName); err != nil {
+			return err
+		} else {
+			cfg = append(cfg, c...)
+		}
+	}
+	return setConfig(cfg, app.args)
+}
+
 func (app *App) PrintHelp(topic ...string) {
 	if app.FuncHelpPrinter != nil {
 		app.FuncHelpPrinter(app)
@@ -248,4 +283,18 @@ func (app *App) PrintHelp(topic ...string) {
 	}
 
 	DefaultHelpPrinter(app)
+}
+
+func (app *App) AddHelpTopic(topic HelpTopic) {
+	app.helpTopics = append(app.helpTopics, topic)
+}
+
+func (app *App) AddHelpTopics(topics ...HelpTopic) {
+	for _, v := range topics {
+		app.AddHelpTopic(v)
+	}
+}
+
+func (app *App) GetHelpTopics() []HelpTopic {
+	return app.helpTopics
 }
