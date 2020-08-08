@@ -2,12 +2,14 @@ package cli
 
 import (
 	"fmt"
-	"strings"
+
+	"github.com/eggsampler/certgot/log"
 )
 
 type HelpTopic struct {
 	Topics          []string
 	Name            string
+	Usage           string
 	Description     string
 	LongDescription string
 	ShowTopic       string
@@ -27,11 +29,6 @@ func ShowNotSubcommand(app *App, topic string) bool {
 }
 
 func DefaultHelpPrinter(app *App) {
-	fmt.Println(strings.Repeat("- ", 40))
-	defer func() {
-		fmt.Println(strings.Repeat("- ", 40))
-	}()
-
 	specifiedTopic := ""
 
 	argHelp := app.GetArgument("help")
@@ -57,8 +54,9 @@ func DefaultHelpPrinter(app *App) {
 
 	// check if topic is a subcommand and print usage + description
 	if sc := app.subCommands[specifiedTopic]; sc != nil && len(sc.HelpTopic.Name) > 0 {
+		fmt.Println("usage:")
 		fmt.Println()
-		fmt.Println("  " + sc.HelpTopic.Name)
+		fmt.Println("  " + sc.HelpTopic.Usage)
 		fmt.Println()
 
 		if len(sc.HelpTopic.Description) > 0 {
@@ -81,16 +79,15 @@ func DefaultHelpPrinter(app *App) {
 }
 
 func printHelpTopic(topic HelpTopic) {
-	fmt.Println()
 	if topic.Name != "" {
 		fmt.Println(topic.Name + ":")
 	}
 	if topic.Description != "" {
-		fmt.Println(topic.Description)
+		fmt.Println(log.Wrap(topic.Description, 80, "  "))
 		fmt.Println()
 	}
 	if topic.LongDescription != "" {
-		fmt.Println(topic.LongDescription)
+		fmt.Println(log.Wrap(topic.LongDescription, 80, ""))
 		fmt.Println()
 	}
 }

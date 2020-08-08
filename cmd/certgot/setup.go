@@ -74,7 +74,7 @@ var (
 		{
 			Topics:          []string{"usage"},
 			Name:            "usage",
-			Description:     "certgot [SUBCOMMAND] [options] [-d DOMAIN] [-d DOMAIN] ...",
+			Description:     "\n  certgot [SUBCOMMAND] [options] [-d DOMAIN] [-d DOMAIN] ...",
 			LongDescription: "Certgot can obtain and install HTTPS/TLS/SSL certificates. By default, it will attempt to use a webserver both for obtaining and installing the certificate. The most common SUBCOMMANDS and flags are:",
 			ShowFunc:        cli.ShowNotSubcommand,
 		},
@@ -87,21 +87,11 @@ var (
 )
 
 func setupSubCommands(app *cli.App) {
-	app.AddSubCommands([]*cli.SubCommand{
-		{
-			Name: "certificates",
-			Run:  commandCertificates,
-		},
-		{
-			Name: "certonly",
-			Run:  commandCertOnly,
-		},
-		{
-			Name:    "run",
-			Default: true,
-			// TODO
-		},
-	}...)
+	app.AddSubCommands(
+		&cmdCertificates,
+		&cmdCertonly,
+		&cmdRun,
+	)
 }
 
 func setupArguments(app *cli.App) {

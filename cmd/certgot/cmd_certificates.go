@@ -14,6 +14,11 @@ import (
 )
 
 var (
+	cmdCertificates = cli.SubCommand{
+		Name: "certificates",
+		Run:  commandCertificates,
+	}
+
 	CERT_SECTIONS = []string{"cert", "privkey", "chain", "fullchain"}
 )
 
