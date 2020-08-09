@@ -107,7 +107,7 @@ func TestApp_AddArguments(t *testing.T) {
 			args := cli.GetArguments()
 			if len(args) != currentTest.expectedCount {
 				t.Fatalf("test %q: expected %d arguments, got: %d",
-					currentTest.testName, currentTest.expectedCount, len(cli.args))
+					currentTest.testName, currentTest.expectedCount, len(cli.argsMap))
 			}
 
 			keyMap := map[string]bool{}
@@ -167,7 +167,7 @@ func TestApp_AddSubCommands(t *testing.T) {
 			subCmds := cli.GetSubCommands()
 			if len(subCmds) != currentTest.expectedCount {
 				t.Fatalf("test %q: expected %d arguments, got: %d",
-					currentTest.testName, currentTest.expectedCount, len(cli.args))
+					currentTest.testName, currentTest.expectedCount, len(cli.argsMap))
 			}
 
 			keyMap := map[string]bool{}
@@ -580,7 +580,7 @@ func Test_doParse(t *testing.T) {
 				t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
 			}
 			if currentTest.checkFunc != nil {
-				if err := currentTest.checkFunc(sc, app.args); err != nil {
+				if err := currentTest.checkFunc(sc, app.argsMap); err != nil {
 					t.Fatalf("test %q: check: %v", currentTest.testName, err)
 				}
 			}

@@ -9,24 +9,32 @@ import (
 var (
 	argConfig = cli.Argument{
 		Name:         constants.ARG_CONFIG,
-		AltNames:     []string{"c"},
+		AltNames:     []string{constants.ARG_CONFIG_SHORT},
 		DefaultValue: &cli.SimpleValue{Value: defaultConfigFiles},
 		TakesValue:   true,
+		HelpTopics:   []string{constants.TOPIC_OPTIONAL},
+		Usage: cli.Usage{
+			ArgName:     "CONFIG_FILE",
+			Description: "path to config file",
+		},
 	}
 	argWorkDir = cli.Argument{
 		Name:         constants.ARG_WORKDIR,
 		DefaultValue: &cli.SimpleValue{Value: defaultWorkDir},
 		TakesValue:   true,
+		HelpTopics:   []string{constants.TOPIC_OPTIONAL},
 	}
 	argLogsDir = cli.Argument{
 		Name:         constants.ARG_LOGSDIR,
 		DefaultValue: &cli.SimpleValue{Value: defaultLogsDir},
 		TakesValue:   true,
+		HelpTopics:   []string{constants.TOPIC_OPTIONAL},
 	}
 	argConfigDir = cli.Argument{
 		Name:         constants.ARG_CONFIGDIR,
 		DefaultValue: &cli.SimpleValue{Value: defaultConfigDir},
 		TakesValue:   true,
+		HelpTopics:   []string{constants.TOPIC_OPTIONAL},
 	}
 
 	argEmail = cli.Argument{
@@ -72,15 +80,20 @@ var (
 
 	helpTopics = []cli.HelpTopic{
 		{
-			Topics:          []string{"usage"},
+			Topic:           constants.TOPIC_USAGE,
 			Name:            "usage",
 			Description:     "\n  certgot [SUBCOMMAND] [options] [-d DOMAIN] [-d DOMAIN] ...",
 			LongDescription: "Certgot can obtain and install HTTPS/TLS/SSL certificates. By default, it will attempt to use a webserver both for obtaining and installing the certificate. The most common SUBCOMMANDS and flags are:",
 			ShowFunc:        cli.ShowNotSubcommand,
 		},
 		{
-			Topics:   []string{"common"},
+			Topic:    constants.TOPIC_COMMON,
 			Name:     "obtain, install, and renew certificates",
+			ShowFunc: cli.ShowNoTopic,
+		},
+		{
+			Topic:    constants.TOPIC_OPTIONAL,
+			Name:     "optional arguments",
 			ShowFunc: cli.ShowNoTopic,
 		},
 	}
@@ -88,9 +101,9 @@ var (
 
 func setupSubCommands(app *cli.App) {
 	app.AddSubCommands(
-		&cmdCertificates,
-		&cmdCertonly,
 		&cmdRun,
+		&cmdCertonly,
+		&cmdCertificates,
 	)
 }
 

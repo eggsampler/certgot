@@ -21,22 +21,35 @@ func extractArg(s string) []string {
 }
 
 type SubCommand struct {
-	Name      string
-	Default   bool
-	Run       func(app *App) error
-	HelpTopic HelpTopic
+	Name       string
+	Default    bool
+	Run        func(app *App) error
+	HelpTopics []string
+	Usage      Usage
+}
+
+type Usage struct {
+	LongUsage   string
+	ArgName     string
+	Description string
 }
 
 type App struct {
+	Name string
+
 	FuncPreRun      func(*App) error
 	FuncPostRun     func(*App, interface{})
 	FuncRecover     func(*App, interface{})
 	FuncHelpPrinter func(*App)
 
-	args              map[string]*Argument
-	subCommands       map[string]*SubCommand
+	argsMap  map[string]*Argument
+	argsList []*Argument
+
+	subCommandMap     map[string]*SubCommand
+	subCommandList    []*SubCommand
 	defaultSubCommand string
-	helpTopics        []HelpTopic
+
+	helpTopics []HelpTopic
 
 	// context
 	OriginalArgs       []string
@@ -44,7 +57,7 @@ type App struct {
 }
 
 func (app *App) GetArguments() map[string]*Argument {
-	return app.args
+	return app.argsMap
 }
 
 // TODO: not sure this is super helpful
@@ -52,11 +65,11 @@ func (app *App) GetArguments() map[string]*Argument {
 // and refer to them by the variable
 // rather than this getter func
 func (app *App) GetArgument(key string) *Argument {
-	return app.args[key]
+	return app.argsMap[key]
 }
 
 func (app *App) GetSubCommands() map[string]*SubCommand {
-	return app.subCommands
+	return app.subCommandMap
 }
 
 func (app *App) AddArgument(argument *Argument) {
@@ -64,12 +77,13 @@ func (app *App) AddArgument(argument *Argument) {
 	if argument == nil {
 		return
 	}
-	if app.args == nil {
-		app.args = map[string]*Argument{}
+	app.argsList = append(app.argsList, argument)
+	if app.argsMap == nil {
+		app.argsMap = map[string]*Argument{}
 	}
-	app.args[argument.Name] = argument
+	app.argsMap[argument.Name] = argument
 	for _, altName := range argument.AltNames {
-		app.args[altName] = argument
+		app.argsMap[altName] = argument
 	}
 }
 
@@ -83,14 +97,14 @@ func (app *App) AddSubCommand(subCommand *SubCommand) {
 	if subCommand == nil {
 		return
 	}
-	if app.subCommands == nil {
-		app.subCommands = map[string]*SubCommand{}
+	app.subCommandList = append(app.subCommandList, subCommand)
+	if app.subCommandMap == nil {
+		app.subCommandMap = map[string]*SubCommand{}
 	}
-	app.subCommands[subCommand.Name] = subCommand
+	app.subCommandMap[subCommand.Name] = subCommand
 	if subCommand.Default {
 		app.defaultSubCommand = subCommand.Name
 	}
-	app.AddHelpTopic(subCommand.HelpTopic)
 }
 
 func (app *App) AddSubCommands(commands ...*SubCommand) {
@@ -164,7 +178,7 @@ func (app *App) Parse(argsToParse []string) error {
 }
 
 func doParse(app *App, argsToParse []string) (*SubCommand, error) {
-	for _, arg := range app.args {
+	for _, arg := range app.argsMap {
 		if arg.PreParse != nil {
 			if err := arg.PreParse(arg, app); err != nil {
 				return nil, fmt.Errorf("error in argument %q PreParse func: %w", arg.Name, err)
@@ -192,7 +206,7 @@ func doParse(app *App, argsToParse []string) (*SubCommand, error) {
 				argLast = argMatch[1]
 			}
 
-			arg := app.args[argLast]
+			arg := app.argsMap[argLast]
 			if arg == nil {
 				return sc, fmt.Errorf("unknown argument: %s", v)
 			}
@@ -219,7 +233,7 @@ func doParse(app *App, argsToParse []string) (*SubCommand, error) {
 				}
 			}
 		} else if argLast != "" {
-			arg := app.args[argLast]
+			arg := app.argsMap[argLast]
 			if arg.OnSet != nil {
 				if err := arg.OnSet(arg, argLast, v, app); err != nil {
 					return sc, fmt.Errorf("error in argument %q OnSet func: %w", arg.Name, err)
@@ -232,7 +246,7 @@ func doParse(app *App, argsToParse []string) (*SubCommand, error) {
 		} else if sc != nil {
 			return sc, fmt.Errorf("extra subcommand %q found, already provided %q", v, sc.Name)
 		} else {
-			sc = app.subCommands[v]
+			sc = app.subCommandMap[v]
 			if sc == nil {
 				return sc, fmt.Errorf("invalid subcommand: %s", v)
 			}
@@ -240,10 +254,10 @@ func doParse(app *App, argsToParse []string) (*SubCommand, error) {
 	}
 
 	if sc == nil {
-		sc = app.subCommands[app.defaultSubCommand]
+		sc = app.subCommandMap[app.defaultSubCommand]
 	}
 
-	for _, arg := range app.args {
+	for _, arg := range app.argsMap {
 		if arg.PostParse != nil {
 			if err := arg.PostParse(arg, sc, app); err != nil {
 				return sc, fmt.Errorf("error in argument %q PostParse func: %w", arg.Name, err)
@@ -273,7 +287,7 @@ func (app *App) LoadConfig(cfgFile *Argument) error {
 			cfg = append(cfg, c...)
 		}
 	}
-	return setConfig(cfg, app.args)
+	return setConfig(cfg, app.argsMap)
 }
 
 func (app *App) PrintHelp(topic ...string) {

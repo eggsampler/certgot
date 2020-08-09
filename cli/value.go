@@ -20,10 +20,6 @@ func (sv SimpleValue) Get() interface{} {
 	return sv.Value
 }
 
-func (sv SimpleValue) HelpValue() string {
-	return fmt.Sprintf("%+v", sv.Value)
-}
-
 type AskValue struct {
 	Query  string
 	Cancel string
