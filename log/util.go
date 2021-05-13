@@ -2,106 +2,105 @@ package log
 
 import (
 	"fmt"
-	"os"
+	"path/filepath"
 	"runtime"
-	"strconv"
+	"runtime/debug"
 	"strings"
 	"time"
 )
 
-var (
-	levels = map[Level]string{
-		DEBUG: "DEBUG",
-		INFO:  "INFO",
-		ERROR: "ERROR",
-		FATAL: "FATAL",
+type debugProvider interface {
+	ReadBuildInfo() (*debug.BuildInfo, bool)
+}
+
+type runtimeProvider interface {
+	Caller(skip int) (pc uintptr, file string, line int, ok bool)
+	FuncForPC(pc uintptr) nameProvider
+}
+
+type nameProvider interface {
+	Name() string
+}
+
+type normalProvider struct{}
+
+func (normalProvider) ReadBuildInfo() (*debug.BuildInfo, bool) {
+	return debug.ReadBuildInfo()
+}
+
+func (normalProvider) Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+	return runtime.Caller(skip)
+}
+
+func (normalProvider) FuncForPC(pc uintptr) nameProvider {
+	return runtime.FuncForPC(pc)
+}
+
+var levelNames = map[Level]string{
+	DebugLevel: "DBG",
+	InfoLevel:  "NFO",
+	WarnLevel:  "WNR",
+	ErrorLevel: "ERR",
+	FatalLevel: "FTL",
+	PanicLevel: "PNC",
+	TraceLevel: "TRC",
+}
+
+// getSource finds the first caller outside of the log package
+func getSource() string {
+	rp := normalProvider{}
+	return getSourceProvider(rp, rp)
+}
+
+func getSourceProvider(dp debugProvider, rp runtimeProvider) string {
+	if dp == nil {
+		return "no_buildinfo"
 	}
-
-	currentLevel = Level(0)
-
-	logFile       string
-	logFileHandle *os.File
-)
-
-func init() {
-	v, ok := os.LookupEnv("CERTBOT_LOGLEVEL")
+	if rp == nil {
+		return "no_caller"
+	}
+	mod, ok := dp.ReadBuildInfo()
 	if !ok {
-		return
+		return "unknown_build"
 	}
-	i, err := strconv.Atoi(v)
-	if err != nil {
-		return
+	if mod == nil {
+		return "unknown_nobuild"
 	}
-	SetLevel(Level(i))
-}
-
-func parseKV(key, value interface{}, verbosity int) string {
-	if verbosity <= 0 {
-		return fmt.Sprintf(`%s="%v"`, key, value)
-	} else if verbosity == 1 {
-		return fmt.Sprintf(`%s="%+v"`, key, value)
-	} // else if verbosity >= 2 {
-	return fmt.Sprintf(`%s="%#v"`, key, value)
-}
-
-func traceFunc() string {
-	// todo: use runtime.callers and not hardcode the skip to find first one outside of log package?
-	pc, file, line, ok := runtime.Caller(4)
-	if !ok {
-		return "unknown"
-	}
-	f := runtime.FuncForPC(pc)
-	return fmt.Sprintf("%s:%d %s", stripPkg(file), line, stripPkg(f.Name()))
-}
-
-func stripPkg(s string) string {
-	const pkg = "github.com/eggsampler/certgot/"
-	n := strings.LastIndex(s, pkg)
-	if n < 0 {
-		return s
-	}
-	return s[n+len(pkg):]
-}
-
-func log(level Level, msg string, fields []string) {
-	fmsg := fmt.Sprintf("%s[%s] {%s} msg=%q %s",
-		levels[level],
-		time.Now().Format("2006-01-02 15:04:05 -0700"),
-		traceFunc(),
-		msg,
-		strings.Join(fields, " "))
-
-	if level >= currentLevel {
-		fmt.Println(fmsg)
-	}
-
-	if logFileHandle == nil && logFile != "" {
-		var err error
-		logFileHandle, err = os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-		if err != nil {
-			panic(fmt.Sprintf("Error opening log file at %q: %v", logFile, err))
+	pkg := mod.Main.Path
+	pkgLog := filepath.Join(pkg, "log")
+	var pc uintptr
+	var file string
+	var line int
+	for i := 1; i < 10; i++ {
+		callerPc, callerFile, callerLine, ok := rp.Caller(i)
+		if !ok {
+			break
+		}
+		if callerFile == "" {
+			continue
+		}
+		pc, file, line = callerPc, callerFile, callerLine
+		// fmt.Printf("caller skip:%d, pc:%x, file:%q, line:%d\n", i, pc, file, line)
+		if strings.Index(callerFile, pkgLog) < 0 {
+			break
 		}
 	}
-
-	if logFileHandle != nil {
-		if _, err := fmt.Fprintln(logFileHandle, fmsg); err != nil {
-			panic("Error writing to log: " + err.Error())
-		}
+	if file == "" {
+		return "unknown_caller"
 	}
+	funcName := fmt.Sprintf("%x", pc)
+	f := rp.FuncForPC(pc)
+	if f != nil {
+		funcName = f.Name()
+	}
+	funcName = filepath.Base(funcName)
+	n := strings.Index(file, pkg)
+	if n >= 0 {
+		return fmt.Sprintf("%s:%d %s", file[n:], line, funcName)
+	}
+	return fmt.Sprintf("%s:%d %s", file, line, funcName)
 }
 
-func logDebug(msg string, fields []string) {
-	log(DEBUG, msg, fields)
-}
-
-func logInfo(msg string, fields []string) {
-	log(INFO, msg, fields)
-}
-
-func logError(msg string, fields []string) {
-	log(ERROR, msg, fields)
-}
-
-func logFatal(msg string, fields []string) {
-	log(FATAL, msg, fields)
+func getTime() string {
+	return time.Now().Format(time.RFC3339) // "2006-01-02 15:04:05 -0700")
 }

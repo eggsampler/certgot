@@ -51,7 +51,7 @@ func TestParse(t *testing.T) {
 			input:      "hello;",
 			expectsDir: true,
 			equalCheck: []interface{}{
-				SimpleDirective{Name: "hello"},
+				Directive{Name: "hello"},
 			},
 		},
 		{
@@ -119,7 +119,7 @@ func TestParse(t *testing.T) {
 			input:      "# hello world",
 			expectsDir: true,
 			equalCheck: []interface{}{
-				CommentDirective("hello world"),
+				Directive{Name: "hello world", Comment: true},
 			},
 		},
 		{
@@ -157,7 +157,7 @@ func TestParse(t *testing.T) {
 			input:      "hello 'foo;bar' world;",
 			expectsDir: true,
 			equalCheck: []interface{}{
-				SimpleDirective{Name: "hello", Parameters: []string{"'foo;bar'", "world"}},
+				Directive{Name: "hello", Parameters: []string{"'foo;bar'", "world"}},
 			},
 		},
 		{
@@ -165,7 +165,7 @@ func TestParse(t *testing.T) {
 			input:      `hello "foo;bar" world;`,
 			expectsDir: true,
 			equalCheck: []interface{}{
-				SimpleDirective{Name: "hello", Parameters: []string{`"foo;bar"`, "world"}},
+				Directive{Name: "hello", Parameters: []string{`"foo;bar"`, "world"}},
 			},
 		},
 		{
@@ -173,7 +173,7 @@ func TestParse(t *testing.T) {
 			input:      "hello 'foo{bar' world;",
 			expectsDir: true,
 			equalCheck: []interface{}{
-				SimpleDirective{Name: "hello", Parameters: []string{"'foo{bar'", "world"}},
+				Directive{Name: "hello", Parameters: []string{"'foo{bar'", "world"}},
 			},
 		},
 		{
@@ -181,7 +181,7 @@ func TestParse(t *testing.T) {
 			input:      `hello "foo{bar" world;`,
 			expectsDir: true,
 			equalCheck: []interface{}{
-				SimpleDirective{Name: "hello", Parameters: []string{`"foo{bar"`, "world"}},
+				Directive{Name: "hello", Parameters: []string{`"foo{bar"`, "world"}},
 			},
 		},
 		{
@@ -221,7 +221,7 @@ func TestParseFile(t *testing.T) {
 		hasError   bool
 		errorStr   string
 		expectsDir bool
-		equalCheck []interface{}
+		equalCheck []Directive
 	}{
 		{
 			fileName: filepath.Join("testdata", "broken.conf"),
@@ -230,40 +230,40 @@ func TestParseFile(t *testing.T) {
 		{
 			fileName:   filepath.Join("testdata", "comment_in_file.conf"),
 			expectsDir: true,
-			equalCheck: []interface{}{
-				CommentDirective("a comment inside a file"),
+			equalCheck: []Directive{
+				Directive{Comment: true, Name: "a comment inside a file"},
 			},
 		},
 		{
 			fileName:   filepath.Join("testdata", "edge_cases.conf"),
 			expectsDir: true,
-			equalCheck: []interface{}{
-				CommentDirective("This is not a valid nginx config file but it tests edge cases in valid nginx syntax"),
-				BlockDirective{
+			equalCheck: []Directive{
+				Directive{Comment: true, Name: "This is not a valid nginx config file but it tests edge cases in valid nginx syntax"},
+				Directive{
 					Name: "server",
-					Children: []interface{}{
-						SimpleDirective{
+					Children: []Directive{
+						{
 							Name:       "server_name",
 							Parameters: []string{"simple"},
 						},
 					},
 				},
-				BlockDirective{
+				Directive{
 					Name: "server",
-					Children: []interface{}{
-						SimpleDirective{
+					Children: []Directive{
+						Directive{
 							Name:       "server_name",
 							Parameters: []string{"with.if"},
 						},
-						BlockDirective{
+						Directive{
 							Name:       "location",
 							Parameters: []string{"~", "^/services/.+$"},
-							Children: []interface{}{
-								BlockDirective{
+							Children: []Directive{
+								Directive{
 									Name:       "if",
 									Parameters: []string{"($request_filename", "~*", `\.(ttf|woff)$)`},
-									Children: []interface{}{
-										SimpleDirective{
+									Children: []Directive{
+										Directive{
 											Name:       "add_header",
 											Parameters: []string{"Access-Control-Allow-Origin", `"*"`},
 										},
@@ -273,30 +273,30 @@ func TestParseFile(t *testing.T) {
 						},
 					},
 				},
-				BlockDirective{
+				Directive{
 					Name: "server",
-					Children: []interface{}{
-						SimpleDirective{
+					Children: []Directive{
+						Directive{
 							Name:       "server_name",
 							Parameters: []string{"with.complicated.headers"},
 						},
-						BlockDirective{
+						Directive{
 							Name:       "location",
 							Parameters: []string{"~*", "\\.(?:gif|jpe?g|png)$"},
-							Children: []interface{}{
-								SimpleDirective{
+							Children: []Directive{
+								Directive{
 									Name:       "add_header",
 									Parameters: []string{"Pragma", "public"},
 								},
-								SimpleDirective{
+								Directive{
 									Name:       "add_header",
 									Parameters: []string{"Cache-Control", `'public, must-revalidate, proxy-revalidate'`, `"test,;{}"`, "foo"},
 								},
-								SimpleDirective{
+								Directive{
 									Name:       "blah",
 									Parameters: []string{`"hello;world"`},
 								},
-								SimpleDirective{
+								Directive{
 									Name:       "try_files",
 									Parameters: []string{"$uri", "@rewrites"},
 								},
@@ -323,27 +323,27 @@ func TestParseFile(t *testing.T) {
 		{
 			fileName:   filepath.Join("testdata", "multiline_quotes.conf"),
 			expectsDir: true,
-			equalCheck: []interface{}{
-				CommentDirective("Test nginx configuration file with multiline quoted strings."),
-				CommentDirective("Good example of usage for multilined quoted values is when"),
-				CommentDirective("using Openresty's Lua directives and you wish to keep the"),
-				CommentDirective("inline Lua code readable."),
-				BlockDirective{
+			equalCheck: []Directive{
+				Directive{Comment: true, Name: "Test nginx configuration file with multiline quoted strings."},
+				Directive{Comment: true, Name: "Good example of usage for multilined quoted values is when"},
+				Directive{Comment: true, Name: "using Openresty's Lua directives and you wish to keep the"},
+				Directive{Comment: true, Name: "inline Lua code readable."},
+				Directive{
 					Name: "http",
-					Children: []interface{}{
-						BlockDirective{
+					Children: []Directive{
+						Directive{
 							Name: "server",
-							Children: []interface{}{
-								SimpleDirective{
+							Children: []Directive{
+								Directive{
 									Name:       "listen",
 									Parameters: []string{"*:443"},
 								},
-								CommentDirective("because there should be no other port open."),
-								BlockDirective{
+								Directive{Comment: true, Name: "because there should be no other port open."},
+								Directive{
 									Name:       "location",
 									Parameters: []string{"/"},
-									Children: []interface{}{
-										SimpleDirective{
+									Children: []Directive{
+										Directive{
 											Name: "body_filter_by_lua",
 											Parameters: []string{`'ngx.ctx.buffered = (ngx.ctx.buffered or "") .. string.sub(ngx.arg[1], 1, 1000)
                             if ngx.arg[2] then
@@ -388,10 +388,10 @@ func TestParseFile(t *testing.T) {
 		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
 			t.Fatalf("test %q: expected %q in error: %v", currentTest.fileName, currentTest.errorStr, err)
 		}
-		directives, ok := output.([]interface{})
-		if currentTest.expectsDir != ok {
-			t.Fatalf("test %q: expects directive %t, got: %t\n output: %#v",
-				currentTest.fileName, currentTest.expectsDir, ok, directives)
+		directives := toDirectiveSlice(output)
+		if currentTest.expectsDir != (len(directives) > 0) {
+			t.Fatalf("test %q: expects directive %t, got: %d\n output: %#v",
+				currentTest.fileName, currentTest.expectsDir, len(directives), directives)
 		}
 		if currentTest.equalCheck != nil {
 			if !reflect.DeepEqual(directives, currentTest.equalCheck) {

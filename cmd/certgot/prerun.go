@@ -11,7 +11,7 @@ import (
 )
 
 func doPreRun(app *cli.App) error {
-	ll := log.Entry{}
+	ll := log.Fields{}
 	for _, v := range app.GetArguments() {
 		if !v.HasValue() {
 			continue
