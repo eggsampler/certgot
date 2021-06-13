@@ -1,19 +1,34 @@
 package main
 
 import (
-	"github.com/eggsampler/certgot/constants"
-
 	"github.com/eggsampler/certgot/cli"
+	"github.com/eggsampler/certgot/constants"
 )
 
 var (
+	argHelp = cli.Argument{
+		Name:       constants.ARG_HELP,
+		AltNames:   []string{constants.ARG_HELP_SHORT},
+		TakesValue: true,
+		HelpTopics: []string{constants.TOPIC_OPTIONAL},
+		Usage: cli.ArgumentUsage{
+			Description: "show this help message and exit",
+		},
+		PostParse: func(arg *cli.Argument, sc *cli.SubCommand, app *cli.App) error {
+			if !arg.IsPresent {
+				return nil
+			}
+			app.PrintHelp()
+			return cli.ErrExitSuccess
+		},
+	}
 	argConfig = cli.Argument{
 		Name:         constants.ARG_CONFIG,
 		AltNames:     []string{constants.ARG_CONFIG_SHORT},
 		DefaultValue: &cli.SimpleValue{Value: defaultConfigFiles},
 		TakesValue:   true,
 		HelpTopics:   []string{constants.TOPIC_OPTIONAL},
-		Usage: cli.Usage{
+		Usage: cli.ArgumentUsage{
 			ArgName:     "CONFIG_FILE",
 			Description: "path to config file",
 		},
@@ -92,9 +107,14 @@ var (
 			ShowFunc: cli.ShowNoTopic,
 		},
 		{
+			Topic:    constants.TOPIC_MANAGE,
+			Name:     "manage certificates",
+			ShowFunc: cli.ShowNoTopic,
+		},
+		{
 			Topic:    constants.TOPIC_OPTIONAL,
 			Name:     "optional arguments",
-			ShowFunc: cli.ShowNoTopic,
+			ShowFunc: cli.ShowAlways,
 		},
 	}
 )
@@ -109,6 +129,7 @@ func setupSubCommands(app *cli.App) {
 
 func setupArguments(app *cli.App) {
 	app.AddArguments(
+		&argHelp,
 		&argConfig,
 		&argWorkDir,
 		&argLogsDir,

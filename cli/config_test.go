@@ -3,6 +3,10 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
+	"os/user"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -147,5 +151,263 @@ func Test_setConfig(t *testing.T) {
 		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
 			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
 		}
+	}
+}
+
+var (
+	funcNoEnv  = func(string) string { return "" }
+	funcNoUser = func() (*user.User, error) { return nil, errors.New("no user") }
+)
+
+func Test_parsePath(t *testing.T) {
+	type args struct {
+		path     string
+		envFunc  func(string) string
+		userFunc func() (*user.User, error)
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "empty",
+			args: args{
+				path:     "",
+				envFunc:  funcNoEnv,
+				userFunc: funcNoUser,
+			},
+			want: ".",
+		},
+		{
+			name: "simple",
+			args: args{
+				path:     "~",
+				envFunc:  funcNoEnv,
+				userFunc: funcNoUser,
+			},
+			want: "~",
+		},
+		{
+			name: "xdg 1",
+			args: args{
+				path: "~",
+				envFunc: func(s string) string {
+					if s == "XDG_CONFIG_HOME" {
+						return "XDG_CONFIG_HOME"
+					}
+					return ""
+				},
+				userFunc: funcNoUser,
+			},
+			want: "XDG_CONFIG_HOME",
+		},
+		{
+			name: "xdg 2",
+			args: args{
+				path: filepath.Join("~", "hello"),
+				envFunc: func(s string) string {
+					if s == "XDG_CONFIG_HOME" {
+						return "XDG_CONFIG_HOME"
+					}
+					return ""
+				},
+				userFunc: funcNoUser,
+			},
+			want: filepath.Join("XDG_CONFIG_HOME", "hello"),
+		},
+		{
+			name: "user home",
+			args: args{
+				path:    "~",
+				envFunc: funcNoEnv,
+				userFunc: func() (*user.User, error) {
+					return &user.User{
+						HomeDir: "USER_HOME_DIR",
+					}, nil
+				},
+			},
+			want: "USER_HOME_DIR",
+		},
+		{
+			name: "home",
+			args: args{
+				path: "~",
+				envFunc: func(s string) string {
+					if s == "HOME" {
+						return "HOME"
+					}
+					return ""
+				},
+				userFunc: funcNoUser,
+			},
+			want: "HOME",
+		},
+		{
+			name: "home drive/path",
+			args: args{
+				path: "~",
+				envFunc: func(s string) string {
+					if s == "HomeDrive" {
+						return "HomeDrive"
+					}
+					if s == "HomePath" {
+						return "HomePath"
+					}
+					return ""
+				},
+				userFunc: funcNoUser,
+			},
+			want: filepath.Join("HomeDrive", "HomePath"),
+		},
+		{
+			name: "userprofile",
+			args: args{
+				path: "~",
+				envFunc: func(s string) string {
+					if s == "UserProfile" {
+						return "UserProfile"
+					}
+					return ""
+				},
+				userFunc: funcNoUser,
+			},
+			want: "UserProfile",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := parsePath(tt.args.path, tt.args.envFunc, tt.args.userFunc); got != tt.want {
+				t.Errorf("parsePath() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type mockFS struct {
+	file fs.File
+}
+
+func (m mockFS) Open(name string) (fs.File, error) {
+	if m.file == nil {
+		return nil, fs.ErrNotExist
+	}
+	return m.file, nil
+}
+
+type errorFile struct{}
+
+func (errorFile) Stat() (fs.FileInfo, error) {
+	return nil, errors.New("errorFile")
+}
+
+func (errorFile) Read([]byte) (int, error) {
+	return 0, errors.New("errorFile")
+}
+
+func (errorFile) Close() error {
+	return errors.New("errorFile")
+}
+
+type emptyFile struct{}
+
+func (emptyFile) Stat() (fs.FileInfo, error) {
+	return nil, nil
+}
+
+func (emptyFile) Read([]byte) (int, error) {
+	return 0, io.EOF
+}
+
+func (emptyFile) Close() error {
+	return nil
+}
+
+func Test_loadConfig(t *testing.T) {
+	type args struct {
+		app     *App
+		cfgFile *Argument
+		sys     fs.FS
+	}
+	tests := []struct {
+		name     string
+		args     args
+		wantErr  bool
+		errorStr string
+	}{
+		{
+			name:     "nil",
+			args:     args{},
+			wantErr:  true,
+			errorStr: "no config",
+		},
+		{
+			name: "empty arg",
+			args: args{
+				app:     &App{},
+				cfgFile: &Argument{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "simple default",
+			args: args{
+				app: &App{},
+				cfgFile: &Argument{
+					DefaultValue: SimpleValue{Value: []string{"hello"}},
+				},
+				sys: mockFS{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "error present",
+			args: args{
+				app: &App{},
+				cfgFile: &Argument{
+					DefaultValue: SimpleValue{Value: []string{"hello"}},
+					IsPresent:    true,
+				},
+				sys: mockFS{},
+			},
+			wantErr:  true,
+			errorStr: "error opening config file",
+		},
+		{
+			name: "file error",
+			args: args{
+				app: &App{},
+				cfgFile: &Argument{
+					DefaultValue: SimpleValue{Value: []string{"hello"}},
+					IsPresent:    true,
+				},
+				sys: mockFS{file: errorFile{}},
+			},
+			wantErr:  true,
+			errorStr: "errorFile",
+		},
+		{
+			name: "file no error",
+			args: args{
+				app: &App{},
+				cfgFile: &Argument{
+					DefaultValue: SimpleValue{Value: []string{"hello"}},
+					IsPresent:    true,
+				},
+				sys: mockFS{file: emptyFile{}},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := loadConfig(tt.args.app, tt.args.cfgFile, tt.args.sys)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("loadConfig() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil && !strings.Contains(err.Error(), tt.errorStr) {
+				t.Fatalf("expected %q in error: %v", tt.errorStr, err)
+			}
+		})
 	}
 }

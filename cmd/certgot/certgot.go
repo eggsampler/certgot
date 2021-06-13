@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/eggsampler/certgot/isdelve"
-
 	"github.com/eggsampler/certgot/cli"
+	"github.com/eggsampler/certgot/isdelve"
 	"github.com/eggsampler/certgot/log"
 )
 
 func main() {
 	app := &cli.App{
+		Name:        "certgot",
 		FuncPreRun:  doPreRun,
 		FuncPostRun: doPostRun,
 	}

@@ -2,8 +2,10 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -48,7 +50,7 @@ func parseConfig(r io.Reader, fileName string) ([]configEntry, error) {
 		}
 		cfg = append(cfg, entry)
 	}
-	return cfg, nil
+	return cfg, scanner.Err()
 }
 
 func setConfig(config []configEntry, args map[string]*Argument) error {
@@ -57,7 +59,7 @@ func setConfig(config []configEntry, args map[string]*Argument) error {
 		if !ok {
 			return fmt.Errorf("unknown argument %s on line %d in config file: %s", entry.key, entry.line, entry.fileName)
 		}
-		arg.isPresent = true
+		arg.IsPresent = true
 		if entry.hasValue {
 			if err := arg.Set(entry.value); err != nil {
 				return fmt.Errorf("error setting argument %q to value %q: %v", entry.key, entry.value, err)
@@ -67,25 +69,57 @@ func setConfig(config []configEntry, args map[string]*Argument) error {
 	return nil
 }
 
-// parsePath takes a path string which might begin with a ~ and attempts to replace it with the users home directory
-func parsePath(path string) string {
+// parsePath takes a path string which might begin with a ~ and, if it does, attempts to replace the tilde
+// with the users home directory
+// Priorities:
+//  $XDG_CONFIG_HOME
+//  user.Current().HomeDir
+//  $HOME
+//  %HomeDrive%\%HomePath% (windows)
+//  %UserProfile% (windows)
+func parsePath(path string, envFunc func(string) string, userFunc func() (*user.User, error)) string {
 	if !strings.HasPrefix(path, "~") {
 		return filepath.Clean(path)
 	}
-	if xdgConfigHome := os.Getenv("XDG_CONFIG_HOME"); xdgConfigHome != "" {
+	if xdgConfigHome := envFunc("XDG_CONFIG_HOME"); xdgConfigHome != "" {
 		return filepath.Join(xdgConfigHome + path[1:])
 	}
-	if u, err := user.Current(); err == nil {
+	if u, err := userFunc(); err == nil {
 		return filepath.Join(u.HomeDir, path[1:])
 	}
-	if home := os.Getenv("HOME"); home != "" {
+	if home := envFunc("HOME"); home != "" {
 		return filepath.Join(home, path[1:])
 	}
-	if home := filepath.Join(os.Getenv("HomeDrive"), os.Getenv("HomePath")); home != "" {
+	if home := filepath.Join(envFunc("HomeDrive"), envFunc("HomePath")); home != "" {
 		return filepath.Join(home, path[1:])
 	}
-	if home := os.Getenv("UserProfile"); home != "" {
+	if home := envFunc("UserProfile"); home != "" {
 		return filepath.Join(home, path[1:])
 	}
 	return filepath.Clean(path)
+}
+
+func loadConfig(app *App, cfgFile *Argument, sys fs.FS) error {
+	if cfgFile == nil {
+		return errors.New("no config file argument provided")
+	}
+	var cfg []configEntry
+	for _, fileName := range cfgFile.StringSliceOrDefault() {
+		fileName = parsePath(fileName, os.Getenv, user.Current)
+		f, err := sys.Open(fileName)
+		if err != nil {
+			// skip file not found errors if config is default cfg files
+			if !cfgFile.IsPresent && errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return fmt.Errorf("error opening config file %q: %w", fileName, err)
+		}
+		if c, err := parseConfig(f, fileName); err != nil {
+			return err
+		} else {
+			cfg = append(cfg, c...)
+		}
+		_ = f.Close()
+	}
+	return setConfig(cfg, app.argsMap)
 }

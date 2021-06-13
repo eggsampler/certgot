@@ -35,45 +35,58 @@ func DefaultHelpPrinter(app *App) {
 		specifiedTopic = argHelp.StringOrDefault()
 	}
 
-	// print help topics if showfunc evaluates to true
-	for _, helpTopic := range app.helpTopics {
-		if helpTopic.ShowFunc != nil && helpTopic.ShowFunc(app, specifiedTopic) {
-			printHelpTopic(app, helpTopic)
-		}
+	specifiedTopic = strings.ToLower(specifiedTopic)
+	if specifiedTopic == "all" {
+		specifiedTopic = ""
 	}
 
-	if specifiedTopic == "" {
+	// check topic exists
+	sc := app.subCommandMap[specifiedTopic]
+	ht, foundHt := getHelpTopic(app.helpTopics, specifiedTopic)
+
+	if specifiedTopic != "" && sc == nil && !foundHt {
+		fmt.Printf("Unknown topic/command: %q\n", specifiedTopic)
+		allTopics := []string{"all"}
+		for _, t := range app.helpTopics {
+			allTopics = append(allTopics, t.Topic)
+		}
+		fmt.Printf("Valid topics: %s\n", strings.Join(allTopics, ", "))
+		var allCommands []string
+		for k, _ := range app.subCommandMap {
+			allCommands = append(allCommands, k)
+		}
+		fmt.Printf("Valid commands: %s\n", strings.Join(allCommands, ", "))
 		return
 	}
 
 	// check if topic is a subcommand and print usage + description
-	if sc := app.subCommandMap[specifiedTopic]; sc != nil {
+	if sc != nil {
 		fmt.Println("usage:")
 		fmt.Println()
 
 		if len(sc.Usage.LongUsage) > 0 {
-			fmt.Println("  " + app.Name + " " + sc.Usage.LongUsage)
-			fmt.Println()
+			fmt.Println("  " + app.Name + " " + sc.Name + " " + sc.Usage.LongUsage)
 		} else {
-			fmt.Println("  " + app.Name + " " + sc.Name + " [options]")
+			fmt.Println("  " + app.Name + " " + sc.Name + " [options] ...")
 		}
+		fmt.Println()
 
-		if len(sc.Usage.Description) > 0 {
-			fmt.Println(sc.Usage.Description)
-		}
-
-		// print any non-specific help topics for the specified topic
-		for _, helpTopic := range app.helpTopics {
-			if helpTopic.ShowFunc != nil && helpTopic.ShowFunc(app, specifiedTopic) {
-				printHelpTopic(app, helpTopic)
-			}
+		if len(sc.Usage.UsageDescription) > 0 {
+			fmt.Println(sc.Usage.UsageDescription)
+			fmt.Println()
 		}
 	}
 
-	// then grab the helptopic and print that
-	ht, ok := getHelpTopic(app.helpTopics, specifiedTopic)
-	if ok {
+	// then and print the helptopic if found
+	if foundHt {
 		printHelpTopic(app, ht)
+	}
+
+	// print any non-specific help topics for the specified topic (if present)
+	for _, helpTopic := range app.helpTopics {
+		if helpTopic.ShowFunc != nil && helpTopic.ShowFunc(app, specifiedTopic) {
+			printHelpTopic(app, helpTopic)
+		}
 	}
 }
 
@@ -96,7 +109,7 @@ func printHelpTopic(app *App, topic HelpTopic) {
 			if cmd.Default {
 				name = "(default) " + name
 			}
-			_, _ = fmt.Fprintf(w, "    %s\t%s\n", name, cmd.Usage.Description)
+			_, _ = fmt.Fprintf(w, "    %s\t%s\n", name, cmd.Usage.UsageDescription)
 		}
 	}
 	_ = w.Flush()
@@ -126,7 +139,7 @@ func printHelpTopic(app *App, topic HelpTopic) {
 			}
 
 			if len(args) > 18 {
-				_, _ = fmt.Printf("%s%s\t\n\t\t\t%s%s\n", strings.Repeat(" ", padding), args, arg.Usage.Description, argsExtra)
+				_, _ = fmt.Printf("%s%s\t\n\t\t%s%s\n", strings.Repeat(" ", padding), args, arg.Usage.Description, argsExtra)
 				continue
 			}
 

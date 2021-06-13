@@ -163,11 +163,11 @@ func TestArgument_BoolOrDefault(t *testing.T) {
 	if arg.BoolOrDefault() {
 		t.Fatalf("expected false, got true")
 	}
-	arg.isPresent = true
+	arg.IsPresent = true
 	if arg.BoolOrDefault() {
 		t.Fatalf("expected false, got true")
 	}
-	arg.isPresent = false
+	arg.IsPresent = false
 	arg.DefaultValue = SimpleValue{true}
 	if !arg.BoolOrDefault() {
 		t.Fatalf("expected true, got false")

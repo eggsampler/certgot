@@ -1,10 +1,16 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
 )
+
+// ErrExitSuccess represents an error that can be returned from an argument Argument.PostParse func
+// if returned, program exits normally, error return 0
+// TODO: use this for other functions on Argument ?
+var ErrExitSuccess = errors.New("done")
 
 type Argument struct {
 	Name          string
@@ -15,15 +21,21 @@ type Argument struct {
 	TakesMultiple bool
 
 	HelpTopics []string
-	Usage      Usage
+	Usage      ArgumentUsage
 
 	PreParse  func(arg *Argument, app *App) error
 	OnPresent func(arg *Argument, argString string, repeatCount int, app *App) error
 	OnSet     func(arg *Argument, argString string, newValue interface{}, app *App) error
 	PostParse func(arg *Argument, sc *SubCommand, app *App) error
 
-	isPresent bool
-	value     interface{}
+	IsPresent bool
+
+	value interface{}
+}
+
+type ArgumentUsage struct {
+	ArgName     string
+	Description string
 }
 
 func (arg Argument) HasValue() bool {
@@ -70,6 +82,9 @@ func (arg Argument) StringOrDefault() string {
 			return s
 		}
 	}
+	if arg.DefaultValue == nil {
+		return ""
+	}
 	s, _ := arg.DefaultValue.Get().(string)
 	return s
 }
@@ -84,7 +99,7 @@ func (arg Argument) Bool() bool {
 }
 
 func (arg Argument) BoolOrDefault() bool {
-	if arg.isPresent {
+	if arg.IsPresent {
 		b, _ := arg.value.(bool)
 		return b
 	}
@@ -105,6 +120,9 @@ func (arg Argument) StringSliceOrDefault() []string {
 		if ok {
 			return s
 		}
+	}
+	if arg.DefaultValue == nil {
+		return nil
 	}
 	s, _ := arg.DefaultValue.Get().([]string)
 	return s

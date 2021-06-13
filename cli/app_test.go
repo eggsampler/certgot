@@ -334,7 +334,7 @@ func Test_doParse(t *testing.T) {
 		argsToParse    []string
 		hasError       bool
 		errorStr       string
-		checkFunc      func(*SubCommand, map[string]*Argument) error
+		checkFunc      func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error
 	}{
 		{
 			testName:    "malformed argument",
@@ -358,7 +358,7 @@ func Test_doParse(t *testing.T) {
 		{
 			testName:       "default subcommand",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument) error {
+			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
 				if sc.Name != "default" {
 					return fmt.Errorf("expected default, got: %s", sc.Name)
 				}
@@ -372,7 +372,7 @@ func Test_doParse(t *testing.T) {
 				{Name: "non-default", Default: true},
 			},
 			argsToParse: []string{"non-default"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument) error {
+			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
 				if sc.Name != "non-default" {
 					return fmt.Errorf("expected non-default, got: %s", sc.Name)
 				}
@@ -384,9 +384,9 @@ func Test_doParse(t *testing.T) {
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
 			appArguments:   []*Argument{{Name: "known"}},
 			argsToParse:    []string{"--known"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument) error {
+			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
 				knownArg := args["known"]
-				if !knownArg.isPresent {
+				if !knownArg.IsPresent {
 					return fmt.Errorf("expected known arg is not present")
 				}
 				return nil
@@ -412,7 +412,7 @@ func Test_doParse(t *testing.T) {
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
 			appArguments:   []*Argument{{Name: "known", TakesValue: true}},
 			argsToParse:    []string{"--known=value"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument) error {
+			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
 				knownArg := args["known"]
 				if knownArg.String() != "value" {
 					return fmt.Errorf("expected \"value\", got: %q", knownArg.String())
@@ -425,7 +425,7 @@ func Test_doParse(t *testing.T) {
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
 			appArguments:   []*Argument{{Name: "known", TakesValue: true}},
 			argsToParse:    []string{"--known", "value"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument) error {
+			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
 				knownArg := args["known"]
 				if knownArg.String() != "value" {
 					return fmt.Errorf("expected \"value\", got: %q", knownArg.String())
@@ -458,7 +458,7 @@ func Test_doParse(t *testing.T) {
 			},
 			appArguments: []*Argument{{Name: "known", TakesValue: true}},
 			argsToParse:  []string{"--known", "value", "extra"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument) error {
+			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
 				if sc.Name != "extra" {
 					return fmt.Errorf("expected extra, got: %v", sc.Name)
 				}
@@ -513,7 +513,7 @@ func Test_doParse(t *testing.T) {
 			testName:     "args name repeated",
 			appArguments: []*Argument{{Name: "v"}},
 			argsToParse:  []string{"-vvvvv"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument) error {
+			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
 				arg := args["v"]
 				if arg.RepeatCount != 5 {
 					return fmt.Errorf("arg count mismatched, expected 5, got: %d", arg.RepeatCount)
@@ -565,14 +565,36 @@ func Test_doParse(t *testing.T) {
 				return nil
 			}}},
 		},
+		{
+			testName: "postparse func ErrExitSuccess",
+			appArguments: []*Argument{{Name: "hello", PostParse: func(arg *Argument, sc *SubCommand, app *App) error {
+				return ErrExitSuccess
+			}}},
+			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
+				if !exitCalled {
+					return errors.New("no exit called")
+				}
+				if exitRet != 0 {
+					return fmt.Errorf("exit ret expected 0, got: %d", exitRet)
+				}
+				return nil
+			},
+		},
 	}
 
 	for _, currentTest := range testList {
 		t.Run(currentTest.testName, func(t *testing.T) {
-			app := App{}
+			exitCalled := false
+			exitRet := 0
+			app := App{
+				exitFunc: func(i int) {
+					exitCalled = true
+					exitRet = i
+				},
+			}
 			app.AddSubCommands(currentTest.appSubCommands...)
 			app.AddArguments(currentTest.appArguments...)
-			sc, err := doParse(&app, currentTest.argsToParse)
+			err := app.Parse(currentTest.argsToParse)
 			if currentTest.hasError == (err == nil) {
 				t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
 			}
@@ -580,7 +602,7 @@ func Test_doParse(t *testing.T) {
 				t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
 			}
 			if currentTest.checkFunc != nil {
-				if err := currentTest.checkFunc(sc, app.argsMap); err != nil {
+				if err := currentTest.checkFunc(app.SpecificSubCommand, app.argsMap, exitCalled, exitRet); err != nil {
 					t.Fatalf("test %q: check: %v", currentTest.testName, err)
 				}
 			}

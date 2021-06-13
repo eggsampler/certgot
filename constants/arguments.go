@@ -1,6 +1,8 @@
 package constants
 
 const (
+	ARG_HELP                            = "help"
+	ARG_HELP_SHORT                      = "h"
 	ARG_CONFIG                          = "config"
 	ARG_CONFIG_SHORT                    = "c"
 	ARG_WORKDIR                         = "work-dir"

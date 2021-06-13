@@ -6,6 +6,9 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/eggsampler/certgot/constants"
+	"github.com/eggsampler/certgot/log"
 )
 
 var (
@@ -18,20 +21,6 @@ func extractArg(s string) []string {
 		return regArgLong.FindStringSubmatch(s)
 	}
 	return regArgShort.FindStringSubmatch(s)
-}
-
-type SubCommand struct {
-	Name       string
-	Default    bool
-	Run        func(app *App) error
-	HelpTopics []string
-	Usage      Usage
-}
-
-type Usage struct {
-	LongUsage   string
-	ArgName     string
-	Description string
 }
 
 type App struct {
@@ -54,6 +43,18 @@ type App struct {
 	// context
 	OriginalArgs       []string
 	SpecificSubCommand *SubCommand
+
+	// mainly for testing
+	exitFunc func(int)
+}
+
+func (app App) Exit(i int) {
+	if app.exitFunc != nil {
+		app.exitFunc(i)
+		return
+	}
+
+	os.Exit(i)
 }
 
 func (app *App) GetArguments() map[string]*Argument {
@@ -167,33 +168,21 @@ func (app *App) Parse(argsToParse []string) error {
 		}
 	*/
 
-	sc, err := doParse(app, argsToParse)
-	if err != nil {
-		return err
-	}
-
-	app.SpecificSubCommand = sc
-
-	return nil
-}
-
-func doParse(app *App, argsToParse []string) (*SubCommand, error) {
 	for _, arg := range app.argsMap {
 		if arg.PreParse != nil {
 			if err := arg.PreParse(arg, app); err != nil {
-				return nil, fmt.Errorf("error in argument %q PreParse func: %w", arg.Name, err)
+				return fmt.Errorf("error in argument %q PreParse func: %w", arg.Name, err)
 			}
 		}
 	}
 
-	var sc *SubCommand
 	argLast := ""
 
 	for argIdx, v := range argsToParse {
 		if strings.HasPrefix(v, "-") {
 			argMatch := extractArg(v)
 			if len(argMatch) < 2 {
-				return sc, fmt.Errorf("invalid argument: %s", argsToParse[argIdx])
+				return fmt.Errorf("invalid argument: %s", argsToParse[argIdx])
 			}
 
 			argLast = argMatch[1]
@@ -208,15 +197,15 @@ func doParse(app *App, argsToParse []string) (*SubCommand, error) {
 
 			arg := app.argsMap[argLast]
 			if arg == nil {
-				return sc, fmt.Errorf("unknown argument: %s", v)
+				return fmt.Errorf("unknown argument: %s", v)
 			}
 
-			if !arg.isPresent && arg.OnPresent != nil {
+			if !arg.IsPresent && arg.OnPresent != nil {
 				if err := arg.OnPresent(arg, argLast, argCount, app); err != nil {
-					return sc, fmt.Errorf("error in argument %q OnPresent func: %w", arg.Name, err)
+					return fmt.Errorf("error in argument %q OnPresent func: %w", arg.Name, err)
 				}
 			}
-			arg.isPresent = true
+			arg.IsPresent = true
 			arg.RepeatCount = argCount
 
 			if strings.Contains(argMatch[0], "=") {
@@ -224,73 +213,68 @@ func doParse(app *App, argsToParse []string) (*SubCommand, error) {
 
 				if arg.OnSet != nil {
 					if err := arg.OnSet(arg, argLast, argMatch[2], app); err != nil {
-						return sc, fmt.Errorf("error in argument %q OnSet func: %w", arg.Name, err)
+						return fmt.Errorf("error in argument %q OnSet func: %w", arg.Name, err)
 					}
 				}
 
 				if err := arg.Set(argMatch[2]); err != nil {
-					return sc, fmt.Errorf("error setting inline argument %s: %w", v, err)
+					return fmt.Errorf("error setting inline argument %s: %w", v, err)
 				}
 			}
 		} else if argLast != "" {
 			arg := app.argsMap[argLast]
 			if arg.OnSet != nil {
 				if err := arg.OnSet(arg, argLast, v, app); err != nil {
-					return sc, fmt.Errorf("error in argument %q OnSet func: %w", arg.Name, err)
+					return fmt.Errorf("error in argument %q OnSet func: %w", arg.Name, err)
 				}
 			}
 			if err := arg.Set(v); err != nil {
-				return sc, fmt.Errorf("error setting argument %q: %w", argLast, err)
+				return fmt.Errorf("error setting argument %q: %w", argLast, err)
 			}
 			argLast = ""
-		} else if sc != nil {
-			return sc, fmt.Errorf("extra subcommand %q found, already provided %q", v, sc.Name)
+		} else if app.SpecificSubCommand != nil {
+			return fmt.Errorf("extra subcommand %q found, already provided %q", v, app.SpecificSubCommand.Name)
 		} else {
-			sc = app.subCommandMap[v]
-			if sc == nil {
-				return sc, fmt.Errorf("invalid subcommand: %s", v)
+			app.SpecificSubCommand = app.subCommandMap[v]
+			if app.SpecificSubCommand == nil {
+				return fmt.Errorf("invalid subcommand: %s", v)
 			}
 		}
 	}
 
-	if sc == nil {
-		sc = app.subCommandMap[app.defaultSubCommand]
+	if app.SpecificSubCommand == nil {
+		app.SpecificSubCommand = app.subCommandMap[app.defaultSubCommand]
 	}
 
 	for _, arg := range app.argsMap {
 		if arg.PostParse != nil {
-			if err := arg.PostParse(arg, sc, app); err != nil {
-				return sc, fmt.Errorf("error in argument %q PostParse func: %w", arg.Name, err)
+			if err := arg.PostParse(arg, app.SpecificSubCommand, app); err != nil {
+				if errors.Is(err, ErrExitSuccess) {
+					log.WithError(err).WithField("argName", arg.Name).Debug("PostParse returned ErrExitSuccess")
+					app.Exit(0)
+					return nil
+				}
+				return fmt.Errorf("error in argument %q PostParse func: %w", arg.Name, err)
 			}
 		}
 	}
 
-	return sc, nil
+	return nil
 }
 
 func (app *App) LoadConfig(cfgFile *Argument) error {
-	var cfg []configEntry
-	for _, fileName := range cfgFile.StringSliceOrDefault() {
-		fileName = parsePath(fileName)
-		f, err := os.Open(fileName)
-		if err != nil {
-			// skip file not found errors if config is default cfg files
-			if !cfgFile.isPresent && errors.Is(err, os.ErrNotExist) {
-				continue
-			}
-			return fmt.Errorf("error opening config file %q: %w", fileName, err)
-		}
-		defer f.Close()
-		if c, err := parseConfig(f, fileName); err != nil {
-			return err
-		} else {
-			cfg = append(cfg, c...)
-		}
-	}
-	return setConfig(cfg, app.argsMap)
+	return loadConfig(app, cfgFile, os.DirFS(""))
 }
 
 func (app *App) PrintHelp(topic ...string) {
+	// TODO: not sure if this is useful, topic isn't used yet, will it be used??
+	if len(topic) > 0 {
+		helpArg := app.GetArgument(constants.ARG_HELP)
+		if helpArg != nil {
+			_ = helpArg.Set(topic[0])
+		}
+	}
+
 	if app.FuncHelpPrinter != nil {
 		app.FuncHelpPrinter(app)
 		return

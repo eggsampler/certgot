@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// Value represents a type used for a Argument.DefaultValue
+// These can be used to represent simple types like a string, or boolean
+// But also more complex types, for example ones that can prompt user for input
 type Value interface {
 	Get() interface{}
 }

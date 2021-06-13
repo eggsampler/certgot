@@ -6,20 +6,26 @@ import (
 	"strings"
 	"time"
 
-	"github.com/eggsampler/certgot/util"
-
 	"github.com/eggsampler/certgot/cli"
+	"github.com/eggsampler/certgot/constants"
 	"github.com/eggsampler/certgot/log"
+	"github.com/eggsampler/certgot/util"
 	"gopkg.in/ini.v1"
 )
 
 var (
 	cmdCertificates = cli.SubCommand{
-		Name: "certificates",
-		Run:  commandCertificates,
+		Name:       "certificates",
+		Run:        commandCertificates,
+		HelpTopics: []string{constants.TOPIC_MANAGE},
+		Usage: cli.SubCommandUsage{
+			UsageDescription:    "Display information about certificates you have from Certbot",
+			ArgumentDescription: "List certificates managed by Certbot",
+			Arguments:           []cli.Argument{},
+		},
 	}
 
-	CERT_SECTIONS = []string{"cert", "privkey", "chain", "fullchain"}
+	certSections = []string{"cert", "privkey", "chain", "fullchain"}
 )
 
 func commandCertificates(app *cli.App) error {
@@ -54,7 +60,7 @@ func commandCertificates(app *cli.App) error {
 		}
 
 		skip := false
-		for _, v := range CERT_SECTIONS {
+		for _, v := range certSections {
 			if !cfg.Section("").HasKey(v) {
 				ll.WithField("section", v).Error("missing required section")
 				fmt.Printf("Renewal configuration file %s is missing required section %q. Skipping.\n", f, v)

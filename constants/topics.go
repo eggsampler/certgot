@@ -1,7 +1,8 @@
 package constants
 
 const (
-	TOPIC_COMMON   = "common"
-	TOPIC_OPTIONAL = "optional"
 	TOPIC_USAGE    = "usage"
+	TOPIC_COMMON   = "common"
+	TOPIC_MANAGE   = "manage"
+	TOPIC_OPTIONAL = "optional"
 )
