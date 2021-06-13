@@ -7,21 +7,20 @@ import (
 	"time"
 
 	"github.com/eggsampler/certgot/cli"
-	"github.com/eggsampler/certgot/constants"
 	"github.com/eggsampler/certgot/log"
 	"github.com/eggsampler/certgot/util"
 	"gopkg.in/ini.v1"
 )
 
 var (
-	cmdCertificates = cli.SubCommand{
+	cmdCertificates = &cli.SubCommand{
 		Name:       "certificates",
 		Run:        commandCertificates,
-		HelpTopics: []string{constants.TOPIC_MANAGE},
+		HelpTopics: []string{TOPIC_MANAGE},
 		Usage: cli.SubCommandUsage{
 			UsageDescription:    "Display information about certificates you have from Certbot",
 			ArgumentDescription: "List certificates managed by Certbot",
-			Arguments:           []cli.Argument{},
+			Arguments:           []string{},
 		},
 	}
 

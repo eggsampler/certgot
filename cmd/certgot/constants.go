@@ -1,4 +1,4 @@
-package constants
+package main
 
 const (
 	ARG_HELP                            = "help"
@@ -14,4 +14,9 @@ const (
 	ARG_WEBROOT                         = "webroot"
 	ARG_AUTHENTICATOR                   = "authenticator"
 	ARG_AUTHENTICATOR_SHORT             = "a"
+
+	TOPIC_USAGE    = "usage"
+	TOPIC_COMMON   = "common"
+	TOPIC_MANAGE   = "manage"
+	TOPIC_OPTIONAL = "optional"
 )

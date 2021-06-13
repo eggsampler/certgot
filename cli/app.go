@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/eggsampler/certgot/constants"
 	"github.com/eggsampler/certgot/log"
 )
 
@@ -269,7 +268,7 @@ func (app *App) LoadConfig(cfgFile *Argument) error {
 func (app *App) PrintHelp(topic ...string) {
 	// TODO: not sure if this is useful, topic isn't used yet, will it be used??
 	if len(topic) > 0 {
-		helpArg := app.GetArgument(constants.ARG_HELP)
+		helpArg := app.GetArgument("help")
 		if helpArg != nil {
 			_ = helpArg.Set(topic[0])
 		}

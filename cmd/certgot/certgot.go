@@ -36,7 +36,7 @@ func main() {
 	log.WithField("args", args).Debug("parsing arguments")
 	errExit(app.Parse(args))
 	log.WithField("config", argConfig.StringSliceOrDefault()).Debug("loading config")
-	errExit(app.LoadConfig(&argConfig))
+	errExit(app.LoadConfig(argConfig))
 	log.Debug("running")
 	errExit(app.Run())
 }

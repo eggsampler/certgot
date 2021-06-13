@@ -3,16 +3,14 @@ package main
 import (
 	"fmt"
 
-	"github.com/eggsampler/certgot/constants"
-
 	"github.com/eggsampler/certgot/cli"
 )
 
 var (
-	cmdCertonly = cli.SubCommand{
+	cmdCertOnly = &cli.SubCommand{
 		Name:       "certonly",
 		Run:        commandCertOnly,
-		HelpTopics: []string{constants.TOPIC_COMMON},
+		HelpTopics: []string{TOPIC_COMMON},
 	}
 )
 

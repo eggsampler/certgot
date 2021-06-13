@@ -21,5 +21,5 @@ type SubCommandUsage struct {
 
 	// Arguments shows the list of arguments for the specific subcommand
 	// Purely for help purposes
-	Arguments []Argument
+	Arguments []string
 }
