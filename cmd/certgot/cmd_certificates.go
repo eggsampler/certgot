@@ -41,6 +41,13 @@ func commandCertificates(app *cli.App) error {
 	}
 	log.WithField("path", renewalConfPattern).WithField("count", len(renewalFiles)).Debug("found renewals files")
 
+	wantedCertName := ""
+	if argCertName.IsPresent() && argCertName.HasValue() {
+		wantedCertName = argCertName.String()
+	} else if argDomains.IsPresent() && argDomains.HasValue() {
+		wantedCertName = argDomains.StringSlice()[0]
+	}
+
 	type foundCert struct {
 		name     string
 		domains  []string
@@ -76,13 +83,13 @@ func commandCertificates(app *cli.App) error {
 		}
 
 		certName := filepath.Base(f)
+		certName = strings.TrimSuffix(certName, filepath.Ext(certName))
 
-		if argCertName.IsPresent && argCertName.StringOrDefault() != "" {
-			if !strings.EqualFold(certName, argCertName.StringOrDefault()) {
-				ll.WithField("wantedcertname", argCertName.StringOrDefault()).
-					WithField("foundcertname", certName).Debug("skipping due to cert name mismatch")
-				continue
-			}
+		if wantedCertName != "" && !strings.EqualFold(certName, wantedCertName) {
+			ll.WithField("wantedCertName", wantedCertName).
+				WithField("certName", certName).
+				Debug("skipping due to cert name mismatch")
+			continue
 		}
 
 		fc := foundCert{

@@ -66,7 +66,7 @@ func setConfig(config []configEntry, args map[string]*Argument) error {
 			WithField("arg", entry.key).
 			WithField("hasValue", entry.hasValue)
 		ll.Trace("arg present")
-		arg.IsPresent = true
+		arg.isPresent = true
 		if entry.hasValue {
 			ll.WithField("value", entry.value).Trace("setting value")
 			if err := arg.Set(entry.value); err != nil {
@@ -121,7 +121,7 @@ func loadConfig(app *App, cfgFile *Argument, sys fs.FS) error {
 		if err != nil {
 			ll.WithError(err).Error("reading config file")
 			// skip file errors if config file isn't explicitly set
-			if !cfgFile.IsPresent {
+			if !cfgFile.isPresent {
 				continue
 			}
 			return fmt.Errorf("error opening config file %q: %w", fileName, err)

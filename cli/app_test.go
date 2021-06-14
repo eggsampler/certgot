@@ -392,7 +392,7 @@ func Test_doParse(t *testing.T) {
 			argsToParse:    []string{"--known"},
 			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
 				knownArg := args["known"]
-				if !knownArg.IsPresent {
+				if !knownArg.isPresent {
 					return fmt.Errorf("expected known arg is not present")
 				}
 				return nil

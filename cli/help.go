@@ -186,7 +186,7 @@ func printHelpLine(argsOrCmdName, desc string) {
 
 func printHelpArgument(arg *Argument) {
 	argList := []string{
-		strings.TrimSpace("--" + arg.Name + " " + arg.Usage.ArgName),
+		strings.TrimSpace(argDashes(arg.Name) + arg.Name + " " + arg.Usage.ArgName),
 	}
 	for _, n := range arg.AltNames {
 		s := "-"

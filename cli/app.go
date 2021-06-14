@@ -158,6 +158,16 @@ func (app *App) Run() error {
 	return nil
 }
 
+func joinArgNames(arg Argument) string {
+	s := []string{
+		argDashes(arg.Name) + arg.Name,
+	}
+	for _, n := range arg.AltNames {
+		s = append(s, argDashes(n)+n)
+	}
+	return strings.Join(s, "/")
+}
+
 func (app *App) Parse(argsToParse []string) error {
 	// TODO
 	/*
@@ -170,7 +180,7 @@ func (app *App) Parse(argsToParse []string) error {
 	for _, arg := range app.argsMap {
 		if arg.PreParse != nil {
 			if err := arg.PreParse(arg, app); err != nil {
-				return fmt.Errorf("error in argument %q PreParse func: %w", arg.Name, err)
+				return fmt.Errorf("error in argument %q PreParse func: %w", joinArgNames(*arg), err)
 			}
 		}
 	}
@@ -199,13 +209,13 @@ func (app *App) Parse(argsToParse []string) error {
 				return fmt.Errorf("unknown argument: %s", v)
 			}
 
-			if !arg.IsPresent && arg.OnPresent != nil {
+			if !arg.isPresent && arg.OnPresent != nil {
 				if err := arg.OnPresent(arg, argLast, argCount, app); err != nil {
-					return fmt.Errorf("error in argument %q OnPresent func: %w", arg.Name, err)
+					return fmt.Errorf("error in argument %q OnPresent func: %w", joinArgNames(*arg), err)
 				}
 			}
-			arg.IsPresent = true
-			arg.IsPresentInArgument = true
+			arg.isPresent = true
+			arg.isPresentInArgument = true
 			arg.RepeatCount = argCount
 
 			if strings.Contains(argMatch[0], "=") {
@@ -213,7 +223,7 @@ func (app *App) Parse(argsToParse []string) error {
 
 				if arg.OnSet != nil {
 					if err := arg.OnSet(arg, argLast, argMatch[2], app); err != nil {
-						return fmt.Errorf("error in argument %q OnSet func: %w", arg.Name, err)
+						return fmt.Errorf("error in argument %q OnSet func: %w", joinArgNames(*arg), err)
 					}
 				}
 
@@ -225,7 +235,7 @@ func (app *App) Parse(argsToParse []string) error {
 			arg := app.argsMap[argLast]
 			if arg.OnSet != nil {
 				if err := arg.OnSet(arg, argLast, v, app); err != nil {
-					return fmt.Errorf("error in argument %q OnSet func: %w", arg.Name, err)
+					return fmt.Errorf("error in argument %q OnSet func: %w", joinArgNames(*arg), err)
 				}
 			}
 			if err := arg.Set(v); err != nil {
@@ -254,7 +264,7 @@ func (app *App) Parse(argsToParse []string) error {
 					app.Exit(0)
 					return nil
 				}
-				return fmt.Errorf("error in argument %q PostParse func: %w", arg.Name, err)
+				return fmt.Errorf("error in argument %q PostParse func: %w", joinArgNames(*arg), err)
 			}
 		}
 	}

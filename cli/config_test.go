@@ -366,7 +366,7 @@ func Test_loadConfig(t *testing.T) {
 				app: &App{},
 				cfgFile: &Argument{
 					DefaultValue: SimpleValue{Value: []string{"hello"}},
-					IsPresent:    true,
+					isPresent:    true,
 				},
 				sys: mockFS{},
 			},
@@ -379,7 +379,7 @@ func Test_loadConfig(t *testing.T) {
 				app: &App{},
 				cfgFile: &Argument{
 					DefaultValue: SimpleValue{Value: []string{"hello"}},
-					IsPresent:    true,
+					isPresent:    true,
 				},
 				sys: mockFS{file: errorFile{}},
 			},
@@ -392,7 +392,7 @@ func Test_loadConfig(t *testing.T) {
 				app: &App{},
 				cfgFile: &Argument{
 					DefaultValue: SimpleValue{Value: []string{"hello"}},
-					IsPresent:    true,
+					isPresent:    true,
 				},
 				sys: mockFS{file: emptyFile{}},
 			},

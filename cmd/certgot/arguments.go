@@ -35,7 +35,7 @@ var (
 			Description: "show this help message and exit",
 		},
 		PostParse: func(arg *cli.Argument, sc *cli.SubCommand, app *cli.App) error {
-			if !arg.IsPresent {
+			if !arg.IsPresent() {
 				return nil
 			}
 			app.PrintHelp()
@@ -126,6 +126,7 @@ var (
 			ArgName:     "DOMAIN",
 			Description: "Domain names to apply. For multiple domains you can use multiple -d flags or enter a comma separated list of domains as a parameter. The first domain provided will be the subject CN of the certificate, and all domains will be Subject Alternative Names on the certificate. The first domain will also be used in some software user interfaces and as the file paths for the certificate and related material unless otherwise specified or you already have a certificate with the same name. In the case of a name collision it will append a number like 0001 to the file path name.",
 		},
+		PostParse: cli.RequireValueIfSet(),
 	}
 	argCertName = &cli.Argument{
 		Name: ARG_CERT_NAME,

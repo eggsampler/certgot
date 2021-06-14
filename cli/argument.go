@@ -16,7 +16,7 @@ var ErrExitSuccess = errors.New("done")
 // TODO: determine if this needs to be another property on Argument so that Argument.PostParse can still be used otherwise
 func RequireValueIfSet() func(arg *Argument, sc *SubCommand, app *App) error {
 	return func(arg *Argument, sc *SubCommand, app *App) error {
-		if arg.TakesValue && arg.IsPresent && !arg.HasValue() {
+		if arg.TakesValue && arg.isPresent && !arg.HasValue() {
 			return errors.New("argument requires a value")
 		}
 		return nil
@@ -39,8 +39,8 @@ type Argument struct {
 	OnSet     func(arg *Argument, argString string, newValue interface{}, app *App) error
 	PostParse func(arg *Argument, sc *SubCommand, app *App) error
 
-	IsPresent           bool
-	IsPresentInArgument bool
+	isPresent           bool
+	isPresentInArgument bool
 
 	value interface{}
 }
@@ -48,6 +48,14 @@ type Argument struct {
 type ArgumentUsage struct {
 	ArgName     string
 	Description string
+}
+
+func (arg Argument) IsPresent() bool {
+	return arg.isPresent
+}
+
+func (arg Argument) IsPresentInArgument() bool {
+	return arg.isPresentInArgument
 }
 
 func (arg Argument) HasValue() bool {
@@ -106,12 +114,26 @@ func (arg Argument) StringSlice() []string {
 	return s
 }
 
+func (arg Argument) StringSliceOrDefault() []string {
+	if arg.HasValue() {
+		s, ok := arg.value.([]string)
+		if ok {
+			return s
+		}
+	}
+	if arg.DefaultValue == nil {
+		return nil
+	}
+	s, _ := arg.DefaultValue.Get().([]string)
+	return s
+}
+
 func (arg Argument) Bool() bool {
 	return arg.value.(bool)
 }
 
 func (arg Argument) BoolOrDefault() bool {
-	if arg.IsPresent {
+	if arg.isPresent {
 		b, _ := arg.value.(bool)
 		return b
 	}
@@ -126,16 +148,9 @@ func (arg Argument) BoolOrDefault() bool {
 	return b
 }
 
-func (arg Argument) StringSliceOrDefault() []string {
-	if arg.HasValue() {
-		s, ok := arg.value.([]string)
-		if ok {
-			return s
-		}
+func argDashes(s string) string {
+	if len(s) == 1 {
+		return "-"
 	}
-	if arg.DefaultValue == nil {
-		return nil
-	}
-	s, _ := arg.DefaultValue.Get().([]string)
-	return s
+	return "--"
 }
