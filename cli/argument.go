@@ -12,6 +12,17 @@ import (
 // TODO: use this for other functions on Argument ?
 var ErrExitSuccess = errors.New("done")
 
+// RequireValueIfSet can be used in Argument.PostParse to ensure an argument, if present, has a value
+// TODO: determine if this needs to be another property on Argument so that Argument.PostParse can still be used otherwise
+func RequireValueIfSet() func(arg *Argument, sc *SubCommand, app *App) error {
+	return func(arg *Argument, sc *SubCommand, app *App) error {
+		if arg.TakesValue && arg.IsPresent && !arg.HasValue() {
+			return errors.New("argument requires a value")
+		}
+		return nil
+	}
+}
+
 type Argument struct {
 	Name          string
 	AltNames      []string

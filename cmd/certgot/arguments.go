@@ -139,5 +139,6 @@ var (
 			ArgName:     "CERTNAME",
 			Description: "Certificate name to apply. This name is used by Certbot for housekeeping and in file paths; it doesn't affect the content of the certificate itself. To see certificate names, run 'certbot certificates'. When creating a new certificate, specifies the new certificate's name.",
 		},
+		PostParse: cli.RequireValueIfSet(),
 	}
 )
