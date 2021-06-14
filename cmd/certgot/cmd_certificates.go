@@ -24,7 +24,7 @@ var (
 		Usage: cli.SubCommandUsage{
 			UsageDescription:    "Display information about certificates you have from Certbot",
 			ArgumentDescription: "List certificates managed by Certbot",
-			Arguments:           []string{ARG_DOMAIN, ARG_CERTNAME},
+			Arguments:           []string{ARG_DOMAIN, ARG_CERT_NAME},
 		},
 	}
 
@@ -75,8 +75,18 @@ func commandCertificates(app *cli.App) error {
 			continue
 		}
 
+		certName := filepath.Base(f)
+
+		if argCertName.IsPresent && argCertName.StringOrDefault() != "" {
+			if !strings.EqualFold(certName, argCertName.StringOrDefault()) {
+				ll.WithField("wantedcertname", argCertName.StringOrDefault()).
+					WithField("foundcertname", certName).Debug("skipping due to cert name mismatch")
+				continue
+			}
+		}
+
 		fc := foundCert{
-			name:     filepath.Base(f),
+			name:     certName,
 			certPath: cfg.Section("").Key("cert").String(),
 			keyPath:  cfg.Section("").Key("privkey").String(),
 		}

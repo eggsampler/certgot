@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/eggsampler/certgot/log"
 )
 
 var (
@@ -59,8 +61,14 @@ func setConfig(config []configEntry, args map[string]*Argument) error {
 		if !ok {
 			return fmt.Errorf("unknown argument %s on line %d in config file: %s", entry.key, entry.line, entry.fileName)
 		}
+		ll := log.WithField("filename", entry.fileName).
+			WithField("line", entry.line).
+			WithField("arg", entry.key).
+			WithField("hasValue", entry.hasValue)
+		ll.Trace("arg present")
 		arg.IsPresent = true
 		if entry.hasValue {
+			ll.WithField("value", entry.value).Trace("setting value")
 			if err := arg.Set(entry.value); err != nil {
 				return fmt.Errorf("error setting argument %q to value %q: %v", entry.key, entry.value, err)
 			}
@@ -106,14 +114,19 @@ func loadConfig(app *App, cfgFile *Argument, sys fs.FS) error {
 	var cfg []configEntry
 	for _, fileName := range cfgFile.StringSliceOrDefault() {
 		fileName = parsePath(fileName, os.Getenv, user.Current)
-		f, err := sys.Open(fileName)
+		ll := log.WithField("filename", fileName)
+		ll.Trace("attempting to read config file")
+		// TODO: why does io/fs.ValidPath return false for paths starting/ending with a slash???
+		f, err := sys.Open(strings.Trim(fileName, string(os.PathSeparator)))
 		if err != nil {
-			// skip file not found errors if config is default cfg files
-			if !cfgFile.IsPresent && errors.Is(err, os.ErrNotExist) {
+			ll.WithError(err).Error("reading config file")
+			// skip file errors if config file isn't explicitly set
+			if !cfgFile.IsPresent {
 				continue
 			}
 			return fmt.Errorf("error opening config file %q: %w", fileName, err)
 		}
+		ll.Trace("parsing config file")
 		if c, err := parseConfig(f, fileName); err != nil {
 			return err
 		} else {

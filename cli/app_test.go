@@ -343,8 +343,14 @@ func Test_doParse(t *testing.T) {
 			errorStr:    "invalid argument",
 		},
 		{
-			testName:    "unknown argument no argument",
+			testName:    "unknown argument no argument 1",
 			argsToParse: []string{"--unknown"},
+			hasError:    true,
+			errorStr:    "unknown argument",
+		},
+		{
+			testName:    "unknown argument no argument 2",
+			argsToParse: []string{"--un-known"},
 			hasError:    true,
 			errorStr:    "unknown argument",
 		},

@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	regArgLong  = regexp.MustCompile(`^--([[:alnum:]]+[\-[[:alnum:]]]*)(?:=(.+))?$`)
+	regArgLong  = regexp.MustCompile(`^--([[:alnum:]]+(?:-[[:alnum:]]+)*)(?:=(.+))?$`)
 	regArgShort = regexp.MustCompile("^-(a+|b+|c+|d+|e+|f+|g+|h+|i+|j+|k+|l+|m+|n+|o+|p+|q+|r+|s+|t+|u+|v+|w+|x+|y+|z+)(?:=(.+))?$")
 )
 
@@ -205,6 +205,7 @@ func (app *App) Parse(argsToParse []string) error {
 				}
 			}
 			arg.IsPresent = true
+			arg.IsPresentInArgument = true
 			arg.RepeatCount = argCount
 
 			if strings.Contains(argMatch[0], "=") {

@@ -86,7 +86,7 @@ func TestArgument_String(t *testing.T) {
 }
 
 func TestArgument_StringOrDefault(t *testing.T) {
-	arg := Argument{Name: "test", DefaultValue: SimpleValue{"default"}}
+	arg := Argument{Name: "test", DefaultValue: SimpleValue{"default", "blah"}}
 	if arg.StringOrDefault() == "" {
 		t.Fatalf("expected not empty")
 	}
@@ -126,7 +126,7 @@ func TestArgument_StringSlice(t *testing.T) {
 }
 
 func TestArgument_StringSliceOrDefault(t *testing.T) {
-	arg := Argument{Name: "test", DefaultValue: SimpleValue{[]string{"default"}}, TakesValue: true, TakesMultiple: true}
+	arg := Argument{Name: "test", DefaultValue: SimpleValue{[]string{"default"}, "blah"}, TakesValue: true, TakesMultiple: true}
 
 	val := arg.StringSliceOrDefault()
 	if !reflect.DeepEqual(val, []string{"default"}) {
@@ -159,7 +159,7 @@ func TestArgument_BoolOrDefault(t *testing.T) {
 	if arg.BoolOrDefault() {
 		t.Fatalf("expected false, got true")
 	}
-	arg.DefaultValue = SimpleValue{nil}
+	arg.DefaultValue = SimpleValue{nil, ""}
 	if arg.BoolOrDefault() {
 		t.Fatalf("expected false, got true")
 	}
@@ -168,7 +168,7 @@ func TestArgument_BoolOrDefault(t *testing.T) {
 		t.Fatalf("expected false, got true")
 	}
 	arg.IsPresent = false
-	arg.DefaultValue = SimpleValue{true}
+	arg.DefaultValue = SimpleValue{true, "trueish"}
 	if !arg.BoolOrDefault() {
 		t.Fatalf("expected true, got false")
 	}

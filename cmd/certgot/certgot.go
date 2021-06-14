@@ -41,7 +41,7 @@ func main() {
 		argWebRoot,
 		argAuthenticator,
 		argDomains,
-		artCertName)
+		argCertName)
 
 	errExit := func(err error) {
 		if err != nil {

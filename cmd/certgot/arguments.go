@@ -10,9 +10,9 @@ const (
 	ARG_HELP_SHORT                      = "h"
 	ARG_CONFIG                          = "config"
 	ARG_CONFIG_SHORT                    = "c"
-	ARG_WORKDIR                         = "work-dir"
-	ARG_LOGSDIR                         = "logs-dir"
-	ARG_CONFIGDIR                       = "config-dir"
+	ARG_WORK_DIR                        = "work-dir"
+	ARG_LOGS_DIR                        = "logs-dir"
+	ARG_CONFIG_DIR                      = "config-dir"
 	ARG_EMAIL                           = "email"
 	ARG_REGISTER_UNSAFELY_WITHOUT_EMAIL = "register-unsafely-without-email"
 	ARG_STANDALONE                      = "standalone"
@@ -22,7 +22,7 @@ const (
 	ARG_DOMAIN                          = "domain"
 	ARG_DOMAINS                         = "domains"
 	ARG_DOMAIN_SHORT                    = "d"
-	ARG_CERTNAME                        = "certname"
+	ARG_CERT_NAME                       = "cert-name"
 )
 
 var (
@@ -54,19 +54,19 @@ var (
 		},
 	}
 	argWorkDir = &cli.Argument{
-		Name:         ARG_WORKDIR,
+		Name:         ARG_WORK_DIR,
 		DefaultValue: &cli.SimpleValue{Value: defaultWorkDir},
 		TakesValue:   true,
 		HelpTopics:   []string{TOPIC_OPTIONAL},
 	}
 	argLogsDir = &cli.Argument{
-		Name:         ARG_LOGSDIR,
+		Name:         ARG_LOGS_DIR,
 		DefaultValue: &cli.SimpleValue{Value: defaultLogsDir},
 		TakesValue:   true,
 		HelpTopics:   []string{TOPIC_OPTIONAL},
 	}
 	argConfigDir = &cli.Argument{
-		Name:         ARG_CONFIGDIR,
+		Name:         ARG_CONFIG_DIR,
 		DefaultValue: &cli.SimpleValue{Value: defaultConfigDir},
 		TakesValue:   true,
 		HelpTopics:   []string{TOPIC_OPTIONAL},
@@ -127,11 +127,14 @@ var (
 			Description: "Domain names to apply. For multiple domains you can use multiple -d flags or enter a comma separated list of domains as a parameter. The first domain provided will be the subject CN of the certificate, and all domains will be Subject Alternative Names on the certificate. The first domain will also be used in some software user interfaces and as the file paths for the certificate and related material unless otherwise specified or you already have a certificate with the same name. In the case of a name collision it will append a number like 0001 to the file path name.",
 		},
 	}
-	artCertName = &cli.Argument{
-		Name:         ARG_CERTNAME,
-		DefaultValue: nil,
-		TakesValue:   true,
-		HelpTopics:   []string{COMMAND_CERTIFICATES},
+	argCertName = &cli.Argument{
+		Name: ARG_CERT_NAME,
+		DefaultValue: cli.SimpleValue{
+			Value:        nil,
+			UsageDefault: "the first provided domain or the name of an existing certificate on your system for the same domains",
+		},
+		TakesValue: true,
+		HelpTopics: []string{COMMAND_CERTIFICATES},
 		Usage: cli.ArgumentUsage{
 			ArgName:     "CERTNAME",
 			Description: "Certificate name to apply. This name is used by Certbot for housekeeping and in file paths; it doesn't affect the content of the certificate itself. To see certificate names, run 'certbot certificates'. When creating a new certificate, specifies the new certificate's name.",

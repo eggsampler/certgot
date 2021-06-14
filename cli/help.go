@@ -205,9 +205,9 @@ func printHelpArgument(arg *Argument) {
 
 	// desc includes the argument description and any default value, if set
 	desc := arg.Usage.Description
-	if arg.DefaultValue != nil && arg.DefaultValue.Default() != "" {
+	if arg.DefaultValue != nil && arg.DefaultValue.GetUsageDefault() != "" {
 		// TODO: %s ? stringer something something
-		desc += fmt.Sprintf(" (default: %v)", arg.DefaultValue.Default())
+		desc += fmt.Sprintf(" (default: %v)", arg.DefaultValue.GetUsageDefault())
 	}
 
 	printHelpLine(args, desc)

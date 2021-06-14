@@ -15,7 +15,7 @@ var ErrExitSuccess = errors.New("done")
 type Argument struct {
 	Name          string
 	AltNames      []string
-	DefaultValue  Value
+	DefaultValue  DefaultValue
 	TakesValue    bool
 	RepeatCount   int
 	TakesMultiple bool
@@ -28,7 +28,8 @@ type Argument struct {
 	OnSet     func(arg *Argument, argString string, newValue interface{}, app *App) error
 	PostParse func(arg *Argument, sc *SubCommand, app *App) error
 
-	IsPresent bool
+	IsPresent           bool
+	IsPresentInArgument bool
 
 	value interface{}
 }

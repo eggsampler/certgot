@@ -8,24 +8,31 @@ import (
 	"strings"
 )
 
-// Value represents a type used for a Argument.DefaultValue
+// DefaultValue represents a type used for a Argument.DefaultValue
 // These can be used to represent simple types like a string, or boolean
 // But also more complex types, for example ones that can prompt user for input
-type Value interface {
+type DefaultValue interface {
+	// Get returns the value set
 	Get() interface{}
-	Default() interface{}
+
+	// GetUsageDefault shows a default value when printing help
+	GetUsageDefault() string
 }
 
 type SimpleValue struct {
+	// Value is the value returned from the DefaultValue.Get function
 	Value interface{}
+
+	// UsageDefault is the value returned from the DefaultValue.GetUsageDefault function
+	UsageDefault string
 }
 
 func (sv SimpleValue) Get() interface{} {
 	return sv.Value
 }
 
-func (sv SimpleValue) Default() interface{} {
-	return sv.Get()
+func (sv SimpleValue) GetUsageDefault() string {
+	return sv.UsageDefault
 }
 
 type AskValue struct {
@@ -42,7 +49,7 @@ func (av *AskValue) Get() interface{} {
 	return av.value
 }
 
-func (av AskValue) Default() interface{} {
+func (av AskValue) GetUsageDefault() string {
 	return "Ask"
 }
 
@@ -78,7 +85,7 @@ func (lv *ListValue) Get() interface{} {
 	return lv.value
 }
 
-func (lv ListValue) Default() interface{} {
+func (lv ListValue) GetUsageDefault() string {
 	return "Ask"
 }
 
