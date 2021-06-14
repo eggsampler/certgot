@@ -4,10 +4,19 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/eggsampler/certgot/log"
+	"golang.org/x/term"
 )
+
+var termWidth = 80
+
+func init() {
+	w, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err == nil {
+		termWidth = w
+	}
+}
 
 type HelpTopic struct {
 	Topic           string
@@ -88,6 +97,27 @@ func DefaultHelpPrinter(app *App) {
 			printHelpTopic(app, helpTopic)
 		}
 	}
+
+	if sc != nil {
+		printHelpSubcommand(app, sc)
+	}
+}
+
+func printHelpSubcommand(app *App, sc *SubCommand) {
+	fmt.Println(sc.Name + ":")
+	if sc.Usage.ArgumentDescription != "" {
+		fmt.Println(log.Wrap(sc.Usage.ArgumentDescription, termWidth, "  "))
+		fmt.Println()
+	}
+	for _, argName := range sc.Usage.Arguments {
+		arg := app.GetArgument(argName)
+		if arg == nil {
+			// TODO: handle this more gracefully ?
+			panic(fmt.Sprintf("help subcommand %q has no argument %q", sc.Name, argName))
+		}
+		printHelpArgument(arg)
+	}
+	fmt.Println()
 }
 
 func printHelpTopic(app *App, topic HelpTopic) {
@@ -95,59 +125,92 @@ func printHelpTopic(app *App, topic HelpTopic) {
 		fmt.Println(topic.Name + ":")
 	}
 	if topic.Description != "" {
-		fmt.Println(log.Wrap(topic.Description, 80, "  "))
+		fmt.Println(log.Wrap(topic.Description, termWidth, "  "))
 		fmt.Println()
 	}
 	if topic.LongDescription != "" {
-		fmt.Println(log.Wrap(topic.LongDescription, 80, ""))
+		fmt.Println(log.Wrap(topic.LongDescription, termWidth, ""))
 		//fmt.Println()
 	}
-	w := tabwriter.NewWriter(os.Stdout, 0, 4, 0, '\t', 0)
 	for _, cmd := range app.subCommandList {
 		if contains(cmd.HelpTopics, topic.Topic) {
-			name := cmd.Name
+			cmdName := cmd.Name
 			if cmd.Default {
-				name = "(default) " + name
+				cmdName = "(default) " + cmdName
 			}
-			_, _ = fmt.Fprintf(w, "    %s\t%s\n", name, cmd.Usage.UsageDescription)
+			printHelpLine(cmdName, cmd.Usage.UsageDescription)
 		}
 	}
-	_ = w.Flush()
 
 	for _, arg := range app.argsList {
 		if contains(arg.HelpTopics, topic.Topic) {
-			argList := []string{
-				strings.TrimSpace("--" + arg.Name + " " + arg.Usage.ArgName),
-			}
-			for _, n := range arg.AltNames {
-				s := "-"
-				if len(n) > 1 {
-					s += "-"
-				}
-				s += n + " " + arg.Usage.ArgName
-				argList = append(argList, strings.TrimSpace(s))
-			}
-			args := strings.Join(argList, ", ")
-			padding := 1
-			if strings.HasPrefix(args, "--") {
-				padding = 2
-			}
-
-			argsExtra := ""
-			if arg.DefaultValue != nil {
-				argsExtra = fmt.Sprintf(" (default: %v)", arg.DefaultValue.Get())
-			}
-
-			if len(args) > 18 {
-				_, _ = fmt.Printf("%s%s\t\n\t\t%s%s\n", strings.Repeat(" ", padding), args, arg.Usage.Description, argsExtra)
-				continue
-			}
-
-			_, _ = fmt.Fprintf(w, "%s%s\t%s%s\n", strings.Repeat(" ", padding), args, arg.Usage.Description, argsExtra)
+			printHelpArgument(arg)
 		}
 	}
-	_ = w.Flush()
 	fmt.Println()
+}
+
+func printHelpLine(argsOrCmdName, desc string) {
+	argsOrCmdName = "  " + argsOrCmdName
+	descPrefix := strings.Repeat(" ", 20)
+
+	// if the length of the arguments/command is greater than 20, put the description on the next line
+	if len(argsOrCmdName) > 20 {
+		// print the argument/cmd (ie, --hello THING)
+		fmt.Println(argsOrCmdName)
+
+		// print the description for the argument flag
+		if len(desc) > termWidth {
+			lines := log.WrapSlice(desc, termWidth, descPrefix)
+			for _, line := range lines {
+				fmt.Println(line)
+			}
+		} else {
+			fmt.Println(descPrefix + desc)
+		}
+
+		return
+	}
+
+	combinedLine := argsOrCmdName + strings.Repeat(" ", 20-len(argsOrCmdName)) + desc
+	if len(combinedLine) > termWidth {
+		lines := log.WrapSlice(combinedLine, termWidth, "")
+		fmt.Println(lines[0])
+		for _, line := range lines[1:] {
+			fmt.Println(descPrefix + line)
+		}
+	} else {
+		fmt.Println(combinedLine)
+	}
+}
+
+func printHelpArgument(arg *Argument) {
+	argList := []string{
+		strings.TrimSpace("--" + arg.Name + " " + arg.Usage.ArgName),
+	}
+	for _, n := range arg.AltNames {
+		s := "-"
+		if len(n) > 1 {
+			s += "-"
+		}
+		s += n + " " + arg.Usage.ArgName
+		argList = append(argList, strings.TrimSpace(s))
+	}
+	args := strings.Join(argList, ", ")
+	if strings.HasPrefix(args, "--") {
+		// nothing
+	} else {
+		args = " " + args
+	}
+
+	// desc includes the argument description and any default value, if set
+	desc := arg.Usage.Description
+	if arg.DefaultValue != nil && arg.DefaultValue.Default() != "" {
+		// TODO: %s ? stringer something something
+		desc += fmt.Sprintf(" (default: %v)", arg.DefaultValue.Default())
+	}
+
+	printHelpLine(args, desc)
 }
 
 func getHelpTopic(topics []HelpTopic, s string) (HelpTopic, bool) {

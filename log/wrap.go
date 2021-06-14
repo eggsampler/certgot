@@ -3,6 +3,11 @@ package log
 import "strings"
 
 func Wrap(s string, terminalLen int, prefix string) string {
+	out := strings.Join(WrapSlice(s, terminalLen, prefix), "\n")
+	return out
+}
+
+func WrapSlice(s string, terminalLen int, prefix string) []string {
 	words := strings.Split(s, " ")
 
 	var lines []string
@@ -24,6 +29,5 @@ func Wrap(s string, terminalLen int, prefix string) string {
 		lines = append(lines, prefix+currentLine)
 	}
 
-	out := strings.Join(lines, "\n")
-	return out
+	return lines
 }

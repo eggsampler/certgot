@@ -21,9 +21,27 @@ func main() {
 		app.FuncRecover = doRecover
 	}
 
-	setupHelp(app)
-	setupSubCommands(app)
-	setupArguments(app)
+	app.AddHelpTopics(helpTopics...)
+
+	app.AddSubCommands(
+		cmdRun,
+		cmdCertOnly,
+		cmdCertificates,
+	)
+
+	app.AddArguments(
+		argHelp,
+		argConfig,
+		argWorkDir,
+		argLogsDir,
+		argConfigDir,
+		argEmail,
+		argRegisterUnsafely,
+		argStandAlone,
+		argWebRoot,
+		argAuthenticator,
+		argDomains,
+		artCertName)
 
 	errExit := func(err error) {
 		if err != nil {

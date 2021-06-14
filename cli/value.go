@@ -13,6 +13,7 @@ import (
 // But also more complex types, for example ones that can prompt user for input
 type Value interface {
 	Get() interface{}
+	Default() interface{}
 }
 
 type SimpleValue struct {
@@ -21,6 +22,10 @@ type SimpleValue struct {
 
 func (sv SimpleValue) Get() interface{} {
 	return sv.Value
+}
+
+func (sv SimpleValue) Default() interface{} {
+	return sv.Get()
 }
 
 type AskValue struct {
@@ -35,6 +40,10 @@ func (av *AskValue) Get() interface{} {
 		av.value = readLine(av.Cancel)
 	}
 	return av.value
+}
+
+func (av AskValue) Default() interface{} {
+	return "Ask"
 }
 
 type ListValueOption struct {
@@ -67,6 +76,10 @@ func (lv *ListValue) Get() interface{} {
 	}
 	lv.value = lv.Options[num-1].Value
 	return lv.value
+}
+
+func (lv ListValue) Default() interface{} {
+	return "Ask"
 }
 
 func readLine(cancel string) string {

@@ -12,15 +12,19 @@ import (
 	"gopkg.in/ini.v1"
 )
 
+const (
+	COMMAND_CERTIFICATES = "certificates"
+)
+
 var (
 	cmdCertificates = &cli.SubCommand{
-		Name:       "certificates",
+		Name:       COMMAND_CERTIFICATES,
 		Run:        commandCertificates,
 		HelpTopics: []string{TOPIC_MANAGE},
 		Usage: cli.SubCommandUsage{
 			UsageDescription:    "Display information about certificates you have from Certbot",
 			ArgumentDescription: "List certificates managed by Certbot",
-			Arguments:           []string{},
+			Arguments:           []string{ARG_DOMAIN, ARG_CERTNAME},
 		},
 	}
 
