@@ -55,7 +55,7 @@ func parseConfig(r io.Reader, fileName string) ([]configEntry, error) {
 	return cfg, scanner.Err()
 }
 
-func setConfig(config []configEntry, args map[string]*Argument) error {
+func setConfig(config []configEntry, args map[string]*Flag) error {
 	for _, entry := range config {
 		arg, ok := args[entry.key]
 		if !ok {
@@ -107,7 +107,7 @@ func parsePath(path string, envFunc func(string) string, userFunc func() (*user.
 	return filepath.Clean(path)
 }
 
-func loadConfig(app *App, cfgFile *Argument, sys fs.FS) error {
+func loadConfig(app *App, cfgFile *Flag, sys fs.FS) error {
 	if cfgFile == nil {
 		return errors.New("no config file argument provided")
 	}
@@ -134,5 +134,5 @@ func loadConfig(app *App, cfgFile *Argument, sys fs.FS) error {
 		}
 		_ = f.Close()
 	}
-	return setConfig(cfg, app.argsMap)
+	return setConfig(cfg, app.flagsMap)
 }

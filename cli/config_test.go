@@ -107,10 +107,10 @@ func Test_setConfig(t *testing.T) {
 	testList := []struct {
 		testName  string
 		config    []configEntry
-		args      map[string]*Argument
+		args      map[string]*Flag
 		hasError  bool
 		errorStr  string
-		checkFunc func(config map[string]configEntry, args map[string]*Argument) error
+		checkFunc func(config map[string]configEntry, args map[string]*Flag) error
 	}{
 		{testName: "empty"},
 		{
@@ -122,10 +122,10 @@ func Test_setConfig(t *testing.T) {
 		{
 			testName: "set arg",
 			config:   []configEntry{{key: "hello", hasValue: true, value: "world"}},
-			args: map[string]*Argument{"hello": {
+			args: map[string]*Flag{"hello": {
 				TakesValue: true,
 			}},
-			checkFunc: func(config map[string]configEntry, args map[string]*Argument) error {
+			checkFunc: func(config map[string]configEntry, args map[string]*Flag) error {
 				arg := args["hello"]
 				val := arg.String()
 				if val != "world" {
@@ -137,7 +137,7 @@ func Test_setConfig(t *testing.T) {
 		{
 			testName: "set arg fail",
 			config:   []configEntry{{key: "hello", hasValue: true, value: "world"}},
-			args:     map[string]*Argument{"hello": {}},
+			args:     map[string]*Flag{"hello": {}},
 			hasError: true,
 			errorStr: "error setting arg",
 		},
@@ -326,7 +326,7 @@ func (emptyFile) Close() error {
 func Test_loadConfig(t *testing.T) {
 	type args struct {
 		app     *App
-		cfgFile *Argument
+		cfgFile *Flag
 		sys     fs.FS
 	}
 	tests := []struct {
@@ -345,7 +345,7 @@ func Test_loadConfig(t *testing.T) {
 			name: "empty arg",
 			args: args{
 				app:     &App{},
-				cfgFile: &Argument{},
+				cfgFile: &Flag{},
 			},
 			wantErr: false,
 		},
@@ -353,7 +353,7 @@ func Test_loadConfig(t *testing.T) {
 			name: "simple default",
 			args: args{
 				app: &App{},
-				cfgFile: &Argument{
+				cfgFile: &Flag{
 					DefaultValue: SimpleValue{Value: []string{"hello"}},
 				},
 				sys: mockFS{},
@@ -364,7 +364,7 @@ func Test_loadConfig(t *testing.T) {
 			name: "error present",
 			args: args{
 				app: &App{},
-				cfgFile: &Argument{
+				cfgFile: &Flag{
 					DefaultValue: SimpleValue{Value: []string{"hello"}},
 					isPresent:    true,
 				},
@@ -377,7 +377,7 @@ func Test_loadConfig(t *testing.T) {
 			name: "file error",
 			args: args{
 				app: &App{},
-				cfgFile: &Argument{
+				cfgFile: &Flag{
 					DefaultValue: SimpleValue{Value: []string{"hello"}},
 					isPresent:    true,
 				},
@@ -390,7 +390,7 @@ func Test_loadConfig(t *testing.T) {
 			name: "file no error",
 			args: args{
 				app: &App{},
-				cfgFile: &Argument{
+				cfgFile: &Flag{
 					DefaultValue: SimpleValue{Value: []string{"hello"}},
 					isPresent:    true,
 				},

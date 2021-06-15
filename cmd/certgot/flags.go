@@ -2,49 +2,49 @@ package main
 
 import "github.com/eggsampler/certgot/cli"
 
-// TODO: pick a better naming scheme to identify the constant names vs the variable arguments
+// TODO: pick a better naming scheme to identify the constant names vs the variable flags
 // to better match go naming https://golang.org/doc/effective_go#mixed-caps
 
 const (
-	ARG_HELP                            = "help"
-	ARG_HELP_SHORT                      = "h"
-	ARG_CONFIG                          = "config"
-	ARG_CONFIG_SHORT                    = "c"
-	ARG_WORK_DIR                        = "work-dir"
-	ARG_LOGS_DIR                        = "logs-dir"
-	ARG_CONFIG_DIR                      = "config-dir"
-	ARG_EMAIL                           = "email"
-	ARG_REGISTER_UNSAFELY_WITHOUT_EMAIL = "register-unsafely-without-email"
-	ARG_STANDALONE                      = "standalone"
-	ARG_WEBROOT                         = "webroot"
-	ARG_AUTHENTICATOR                   = "authenticator"
-	ARG_AUTHENTICATOR_SHORT             = "a"
-	ARG_DOMAIN                          = "domain"
-	ARG_DOMAINS                         = "domains"
-	ARG_DOMAIN_SHORT                    = "d"
-	ARG_CERT_NAME                       = "cert-name"
+	FLAG_HELP                            = "help"
+	FLAG_HELP_SHORT                      = "h"
+	FLAG_CONFIG                          = "config"
+	FLAG_CONFIG_SHORT                    = "c"
+	FLAG_WORK_DIR                        = "work-dir"
+	FLAG_LOGS_DIR                        = "logs-dir"
+	FLAG_CONFIG_DIR                      = "config-dir"
+	FLAG_EMAIL                           = "email"
+	FLAG_REGISTER_UNSAFELY_WITHOUT_EMAIL = "register-unsafely-without-email"
+	FLAG_STANDALONE                      = "standalone"
+	FLAG_WEBROOT                         = "webroot"
+	FLAG_AUTHENTICATOR                   = "authenticator"
+	FLAG_AUTHENTICATOR_SHORT             = "a"
+	FLAG_DOMAIN                          = "domain"
+	FLAG_DOMAINS                         = "domains"
+	FLAG_DOMAIN_SHORT                    = "d"
+	FLAG_CERT_NAME                       = "cert-name"
 )
 
 var (
-	argHelp = &cli.Argument{
-		Name:       ARG_HELP,
-		AltNames:   []string{ARG_HELP_SHORT},
+	flagHelp = &cli.Flag{
+		Name:       FLAG_HELP,
+		AltNames:   []string{FLAG_HELP_SHORT},
 		TakesValue: true,
 		HelpTopics: []string{TOPIC_OPTIONAL},
 		Usage: cli.ArgumentUsage{
 			Description: "show this help message and exit",
 		},
-		PostParse: func(arg *cli.Argument, sc *cli.SubCommand, app *cli.App) error {
-			if !arg.IsPresent() {
+		PostParse: func(f *cli.Flag, sc *cli.SubCommand, app *cli.App) error {
+			if !f.IsPresent() {
 				return nil
 			}
-			app.PrintHelp()
+			app.PrintHelp(f.StringOrDefault())
 			return cli.ErrExitSuccess
 		},
 	}
-	argConfig = &cli.Argument{
-		Name:         ARG_CONFIG,
-		AltNames:     []string{ARG_CONFIG_SHORT},
+	flagConfig = &cli.Flag{
+		Name:         FLAG_CONFIG,
+		AltNames:     []string{FLAG_CONFIG_SHORT},
 		DefaultValue: &cli.SimpleValue{Value: defaultConfigFiles},
 		TakesValue:   true,
 		HelpTopics:   []string{TOPIC_OPTIONAL},
@@ -53,50 +53,50 @@ var (
 			Description: "path to config file",
 		},
 	}
-	argWorkDir = &cli.Argument{
-		Name:         ARG_WORK_DIR,
+	flagWorkDir = &cli.Flag{
+		Name:         FLAG_WORK_DIR,
 		DefaultValue: &cli.SimpleValue{Value: defaultWorkDir},
 		TakesValue:   true,
 		HelpTopics:   []string{TOPIC_OPTIONAL},
 	}
-	argLogsDir = &cli.Argument{
-		Name:         ARG_LOGS_DIR,
+	flagLogsDir = &cli.Flag{
+		Name:         FLAG_LOGS_DIR,
 		DefaultValue: &cli.SimpleValue{Value: defaultLogsDir},
 		TakesValue:   true,
 		HelpTopics:   []string{TOPIC_OPTIONAL},
 	}
-	argConfigDir = &cli.Argument{
-		Name:         ARG_CONFIG_DIR,
+	flagConfigDir = &cli.Flag{
+		Name:         FLAG_CONFIG_DIR,
 		DefaultValue: &cli.SimpleValue{Value: defaultConfigDir},
 		TakesValue:   true,
 		HelpTopics:   []string{TOPIC_OPTIONAL},
 	}
 
-	argEmail = &cli.Argument{
-		Name: ARG_EMAIL,
+	flagEmail = &cli.Flag{
+		Name: FLAG_EMAIL,
 		DefaultValue: &cli.AskValue{
 			Query:  "Enter email address (used for urgent renewal and security notices)",
 			Cancel: "An e-mail address or --register-unsafely-without-email must be provided.",
 		},
 		TakesValue: true,
 	}
-	argRegisterUnsafely = &cli.Argument{
-		Name:         ARG_REGISTER_UNSAFELY_WITHOUT_EMAIL,
+	flagRegisterUnsafely = &cli.Flag{
+		Name:         FLAG_REGISTER_UNSAFELY_WITHOUT_EMAIL,
 		DefaultValue: &cli.SimpleValue{Value: false},
 		TakesValue:   true,
 	}
 
-	argStandAlone = &cli.Argument{
-		Name:         ARG_STANDALONE,
+	flagStandAlone = &cli.Flag{
+		Name:         FLAG_STANDALONE,
 		DefaultValue: &cli.SimpleValue{Value: false},
 	}
-	argWebRoot = &cli.Argument{
-		Name:         ARG_WEBROOT,
+	flagWebRoot = &cli.Flag{
+		Name:         FLAG_WEBROOT,
 		DefaultValue: &cli.SimpleValue{Value: false},
 	}
-	argAuthenticator = &cli.Argument{
-		Name:     ARG_AUTHENTICATOR,
-		AltNames: []string{ARG_AUTHENTICATOR_SHORT},
+	flagAuthenticator = &cli.Flag{
+		Name:     FLAG_AUTHENTICATOR,
+		AltNames: []string{FLAG_AUTHENTICATOR_SHORT},
 		DefaultValue: &cli.ListValue{
 			Query:  "How would you like to authenticate with the ACME CA?",
 			Cancel: "", // TODO: something here
@@ -112,9 +112,9 @@ var (
 			},
 		},
 	}
-	argDomains = &cli.Argument{
-		Name:     ARG_DOMAIN,
-		AltNames: []string{ARG_DOMAINS, ARG_DOMAIN_SHORT},
+	flagDomains = &cli.Flag{
+		Name:     FLAG_DOMAIN,
+		AltNames: []string{FLAG_DOMAINS, FLAG_DOMAIN_SHORT},
 		DefaultValue: &cli.AskValue{
 			Query:  "", // TODO
 			Cancel: "", // TODO
@@ -128,8 +128,8 @@ var (
 		},
 		PostParse: cli.RequireValueIfSet(),
 	}
-	argCertName = &cli.Argument{
-		Name: ARG_CERT_NAME,
+	flagCertName = &cli.Flag{
+		Name: FLAG_CERT_NAME,
 		DefaultValue: cli.SimpleValue{
 			Value:        nil,
 			UsageDefault: "the first provided domain or the name of an existing certificate on your system for the same domains",

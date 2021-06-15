@@ -9,7 +9,7 @@ import (
 )
 
 func TestArgument_HasValue(t *testing.T) {
-	arg := Argument{Name: "test"}
+	arg := Flag{Name: "test"}
 	if arg.HasValue() {
 		t.Fatalf("expected false, got true")
 	}
@@ -20,7 +20,7 @@ func TestArgument_HasValue(t *testing.T) {
 }
 
 func TestArgument_Value(t *testing.T) {
-	arg := Argument{Name: "test"}
+	arg := Flag{Name: "test"}
 	if arg.Value() != nil {
 		t.Fatalf("expected nil")
 	}
@@ -34,7 +34,7 @@ func TestArgument_Value(t *testing.T) {
 }
 
 func TestArgument_Set(t *testing.T) {
-	arg := Argument{Name: "test"}
+	arg := Flag{Name: "test"}
 	if err := arg.Set("blah"); err == nil {
 		t.Fatalf("expected error")
 	}
@@ -43,7 +43,7 @@ func TestArgument_Set(t *testing.T) {
 		t.Fatalf("expected no error, got: %v", err)
 	}
 
-	arg2 := Argument{Name: "test", TakesValue: true, TakesMultiple: true}
+	arg2 := Flag{Name: "test", TakesValue: true, TakesMultiple: true}
 	if err := arg2.Set("blah1"); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -54,7 +54,7 @@ func TestArgument_Set(t *testing.T) {
 		t.Fatalf("values not equal")
 	}
 
-	arg3 := Argument{Name: "test", TakesValue: true, TakesMultiple: true}
+	arg3 := Flag{Name: "test", TakesValue: true, TakesMultiple: true}
 	if err := arg3.Set("blah1,blah2"); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestArgument_Set(t *testing.T) {
 		t.Fatalf("values not equal")
 	}
 
-	arg4 := Argument{Name: "test", TakesValue: true, TakesMultiple: true}
+	arg4 := Flag{Name: "test", TakesValue: true, TakesMultiple: true}
 	if err := arg4.Set("blah1, blah2"); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestArgument_Set(t *testing.T) {
 }
 
 func TestArgument_String(t *testing.T) {
-	arg := Argument{Name: "test"}
+	arg := Flag{Name: "test"}
 	if arg.String() != "" {
 		t.Fatalf("expected empty")
 	}
@@ -86,7 +86,7 @@ func TestArgument_String(t *testing.T) {
 }
 
 func TestArgument_StringOrDefault(t *testing.T) {
-	arg := Argument{Name: "test", DefaultValue: SimpleValue{"default", "blah"}}
+	arg := Flag{Name: "test", DefaultValue: SimpleValue{"default", "blah"}}
 	if arg.StringOrDefault() == "" {
 		t.Fatalf("expected not empty")
 	}
@@ -100,7 +100,7 @@ func TestArgument_StringOrDefault(t *testing.T) {
 }
 
 func TestArgument_StringSlice(t *testing.T) {
-	arg := Argument{Name: "test", TakesValue: true, TakesMultiple: true}
+	arg := Flag{Name: "test", TakesValue: true, TakesMultiple: true}
 
 	if err := arg.Set("blah1"); err != nil {
 		t.Fatalf("expected no error, got: %v", err)
@@ -126,7 +126,7 @@ func TestArgument_StringSlice(t *testing.T) {
 }
 
 func TestArgument_StringSliceOrDefault(t *testing.T) {
-	arg := Argument{Name: "test", DefaultValue: SimpleValue{[]string{"default"}, "blah"}, TakesValue: true, TakesMultiple: true}
+	arg := Flag{Name: "test", DefaultValue: SimpleValue{[]string{"default"}, "blah"}, TakesValue: true, TakesMultiple: true}
 
 	val := arg.StringSliceOrDefault()
 	if !reflect.DeepEqual(val, []string{"default"}) {
@@ -143,7 +143,7 @@ func TestArgument_StringSliceOrDefault(t *testing.T) {
 }
 
 func TestArgument_Bool(t *testing.T) {
-	arg := Argument{
+	arg := Flag{
 		Name:  "test",
 		value: true,
 	}
@@ -153,7 +153,7 @@ func TestArgument_Bool(t *testing.T) {
 }
 
 func TestArgument_BoolOrDefault(t *testing.T) {
-	arg := Argument{
+	arg := Flag{
 		Name: "test",
 	}
 	if arg.BoolOrDefault() {

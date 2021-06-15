@@ -16,10 +16,10 @@ type SubCommandUsage struct {
 	// UsageDescription is printed after the usage in help
 	UsageDescription string
 
-	// ArgumentDescription is description text shown before the Arguments list
+	// ArgumentDescription is description text shown before the Flags list
 	ArgumentDescription string
 
-	// Arguments shows the list of arguments for the specific subcommand
+	// Flags shows the list of flag arguments for the specific subcommand
 	// Purely for help purposes
-	Arguments []string
+	Flags []string
 }

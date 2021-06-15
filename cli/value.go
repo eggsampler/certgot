@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// DefaultValue represents a type used for a Argument.DefaultValue
+// DefaultValue represents a type used for a Flag.DefaultValue
 // These can be used to represent simple types like a string, or boolean
 // But also more complex types, for example ones that can prompt user for input
 type DefaultValue interface {

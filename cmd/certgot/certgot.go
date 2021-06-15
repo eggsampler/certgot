@@ -27,21 +27,22 @@ func main() {
 		cmdRun,
 		cmdCertOnly,
 		cmdCertificates,
+		cmdHelp,
 	)
 
-	app.AddArguments(
-		argHelp,
-		argConfig,
-		argWorkDir,
-		argLogsDir,
-		argConfigDir,
-		argEmail,
-		argRegisterUnsafely,
-		argStandAlone,
-		argWebRoot,
-		argAuthenticator,
-		argDomains,
-		argCertName)
+	app.AddFlags(
+		flagHelp,
+		flagConfig,
+		flagWorkDir,
+		flagLogsDir,
+		flagConfigDir,
+		flagEmail,
+		flagRegisterUnsafely,
+		flagStandAlone,
+		flagWebRoot,
+		flagAuthenticator,
+		flagDomains,
+		flagCertName)
 
 	errExit := func(err error) {
 		if err != nil {
@@ -51,10 +52,10 @@ func main() {
 	}
 
 	args := os.Args[1:]
-	log.WithField("args", args).Debug("parsing arguments")
+	log.WithField("flags", args).Debug("parsing arguments")
 	errExit(app.Parse(args))
-	log.WithField("config", argConfig.StringSliceOrDefault()).Debug("loading config")
-	errExit(app.LoadConfig(argConfig))
+	log.WithField("config", flagConfig.StringSliceOrDefault()).Debug("loading config")
+	errExit(app.LoadConfig(flagConfig))
 	log.Debug("running")
 	errExit(app.Run())
 }

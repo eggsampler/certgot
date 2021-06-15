@@ -36,14 +36,7 @@ func ShowNotSubcommand(app *App, topic string) bool {
 	return !ok
 }
 
-func DefaultHelpPrinter(app *App) {
-	specifiedTopic := ""
-
-	argHelp := app.GetArgument("help")
-	if argHelp != nil {
-		specifiedTopic = argHelp.StringOrDefault()
-	}
-
+func DefaultHelpPrinter(app *App, specifiedTopic string) {
 	specifiedTopic = strings.ToLower(specifiedTopic)
 	if specifiedTopic == "all" {
 		specifiedTopic = ""
@@ -99,23 +92,23 @@ func DefaultHelpPrinter(app *App) {
 	}
 
 	if sc != nil {
-		printHelpSubcommand(app, sc)
+		printHelpSubCommand(app, sc)
 	}
 }
 
-func printHelpSubcommand(app *App, sc *SubCommand) {
+func printHelpSubCommand(app *App, sc *SubCommand) {
 	fmt.Println(sc.Name + ":")
 	if sc.Usage.ArgumentDescription != "" {
 		fmt.Println(log.Wrap(sc.Usage.ArgumentDescription, termWidth, "  "))
 		fmt.Println()
 	}
-	for _, argName := range sc.Usage.Arguments {
-		arg := app.GetArgument(argName)
+	for _, argName := range sc.Usage.Flags {
+		arg := app.Flag(argName)
 		if arg == nil {
 			// TODO: handle this more gracefully ?
 			panic(fmt.Sprintf("help subcommand %q has no argument %q", sc.Name, argName))
 		}
-		printHelpArgument(arg)
+		printFlagHelp(arg)
 	}
 	fmt.Println()
 }
@@ -142,22 +135,22 @@ func printHelpTopic(app *App, topic HelpTopic) {
 		}
 	}
 
-	for _, arg := range app.argsList {
+	for _, arg := range app.flagsList {
 		if contains(arg.HelpTopics, topic.Topic) {
-			printHelpArgument(arg)
+			printFlagHelp(arg)
 		}
 	}
 	fmt.Println()
 }
 
-func printHelpLine(argsOrCmdName, desc string) {
-	argsOrCmdName = "  " + argsOrCmdName
+func printHelpLine(flagOrCmdName, desc string) {
+	flagOrCmdName = "  " + flagOrCmdName
 	descPrefix := strings.Repeat(" ", 20)
 
-	// if the length of the arguments/command is greater than 20, put the description on the next line
-	if len(argsOrCmdName) > 20 {
+	// if the length of the flag/command is greater than 20, put the description on the next line
+	if len(flagOrCmdName) > 20 {
 		// print the argument/cmd (ie, --hello THING)
-		fmt.Println(argsOrCmdName)
+		fmt.Println(flagOrCmdName)
 
 		// print the description for the argument flag
 		if len(desc) > termWidth {
@@ -172,7 +165,7 @@ func printHelpLine(argsOrCmdName, desc string) {
 		return
 	}
 
-	combinedLine := argsOrCmdName + strings.Repeat(" ", 20-len(argsOrCmdName)) + desc
+	combinedLine := flagOrCmdName + strings.Repeat(" ", 20-len(flagOrCmdName)) + desc
 	if len(combinedLine) > termWidth {
 		lines := log.WrapSlice(combinedLine, termWidth, "")
 		fmt.Println(lines[0])
@@ -184,16 +177,16 @@ func printHelpLine(argsOrCmdName, desc string) {
 	}
 }
 
-func printHelpArgument(arg *Argument) {
+func printFlagHelp(f *Flag) {
 	argList := []string{
-		strings.TrimSpace(argDashes(arg.Name) + arg.Name + " " + arg.Usage.ArgName),
+		strings.TrimSpace(flagDashes(f.Name) + f.Name + " " + f.Usage.ArgName),
 	}
-	for _, n := range arg.AltNames {
+	for _, n := range f.AltNames {
 		s := "-"
 		if len(n) > 1 {
 			s += "-"
 		}
-		s += n + " " + arg.Usage.ArgName
+		s += n + " " + f.Usage.ArgName
 		argList = append(argList, strings.TrimSpace(s))
 	}
 	args := strings.Join(argList, ", ")
@@ -204,10 +197,10 @@ func printHelpArgument(arg *Argument) {
 	}
 
 	// desc includes the argument description and any default value, if set
-	desc := arg.Usage.Description
-	if arg.DefaultValue != nil && arg.DefaultValue.GetUsageDefault() != "" {
+	desc := f.Usage.Description
+	if f.DefaultValue != nil && f.DefaultValue.GetUsageDefault() != "" {
 		// TODO: %s ? stringer something something
-		desc += fmt.Sprintf(" (default: %v)", arg.DefaultValue.GetUsageDefault())
+		desc += fmt.Sprintf(" (default: %v)", f.DefaultValue.GetUsageDefault())
 	}
 
 	printHelpLine(args, desc)

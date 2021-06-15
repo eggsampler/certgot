@@ -15,7 +15,7 @@ var (
 )
 
 func commandCertOnly(app *cli.App) error {
-	val := argAuthenticator.StringOrDefault()
+	val := flagAuthenticator.StringOrDefault()
 
 	fmt.Println("authenticator: ", val)
 

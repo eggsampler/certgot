@@ -20,11 +20,11 @@ var (
 	cmdCertificates = &cli.SubCommand{
 		Name:       COMMAND_CERTIFICATES,
 		Run:        commandCertificates,
-		HelpTopics: []string{TOPIC_MANAGE},
+		HelpTopics: []string{TOPIC_MANAGE_CERTIFICATES},
 		Usage: cli.SubCommandUsage{
 			UsageDescription:    "Display information about certificates you have from Certbot",
 			ArgumentDescription: "List certificates managed by Certbot",
-			Arguments:           []string{ARG_DOMAIN, ARG_CERT_NAME},
+			Flags:               []string{FLAG_DOMAIN, FLAG_CERT_NAME},
 		},
 	}
 
@@ -32,7 +32,7 @@ var (
 )
 
 func commandCertificates(app *cli.App) error {
-	renewalDir := filepath.Join(argConfigDir.StringOrDefault(), "renewal")
+	renewalDir := filepath.Join(flagConfigDir.StringOrDefault(), "renewal")
 	renewalConfPattern := filepath.Join(renewalDir, "*.conf")
 	renewalFiles, err := filepath.Glob(renewalConfPattern)
 	if err != nil {
@@ -42,10 +42,10 @@ func commandCertificates(app *cli.App) error {
 	log.WithField("path", renewalConfPattern).WithField("count", len(renewalFiles)).Debug("found renewals files")
 
 	wantedCertName := ""
-	if argCertName.IsPresent() && argCertName.HasValue() {
-		wantedCertName = argCertName.String()
-	} else if argDomains.IsPresent() && argDomains.HasValue() {
-		wantedCertName = argDomains.StringSlice()[0]
+	if flagCertName.IsPresent() && flagCertName.HasValue() {
+		wantedCertName = flagCertName.String()
+	} else if flagDomains.IsPresent() && flagDomains.HasValue() {
+		wantedCertName = flagDomains.StringSlice()[0]
 	}
 
 	type foundCert struct {

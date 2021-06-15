@@ -3,11 +3,12 @@ package cli
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 )
 
-func Test_extractArg(t *testing.T) {
+func Test_extractFlag(t *testing.T) {
 	testList := []struct {
 		testName string
 		arg      string
@@ -52,7 +53,7 @@ func Test_extractArg(t *testing.T) {
 
 	for _, currentTest := range testList {
 		t.Run(currentTest.testName, func(t *testing.T) {
-			m := extractArg(currentTest.arg)
+			m := extractFlag(currentTest.arg)
 			if currentTest.matches && m == nil {
 				t.Fatalf("test %q: expected match for arg %q, got none", currentTest.testName, currentTest.arg)
 			}
@@ -63,39 +64,39 @@ func Test_extractArg(t *testing.T) {
 	}
 }
 
-func TestApp_AddArguments(t *testing.T) {
-	testArg := &Argument{Name: "test1"}
-	testArgShort := &Argument{Name: "test2", AltNames: []string{"t"}}
+func TestApp_AddFlag(t *testing.T) {
+	testFlag := &Flag{Name: "test1"}
+	testFlagShort := &Flag{Name: "test2", AltNames: []string{"t"}}
 
 	testList := []struct {
 		testName      string
-		arguments     []*Argument
+		flags         []*Flag
 		expectedCount int
 	}{
 		{
 			testName: "no arguments",
 		},
 		{
-			testName:  "empty arguments",
-			arguments: []*Argument{},
+			testName: "empty arguments",
+			flags:    []*Flag{},
 		},
 		{
-			testName:  "nil argument",
-			arguments: []*Argument{nil},
+			testName: "nil argument",
+			flags:    []*Flag{nil},
 		},
 		{
 			testName:      "single simple argument",
-			arguments:     []*Argument{testArg},
+			flags:         []*Flag{testFlag},
 			expectedCount: 1,
 		},
 		{
 			testName:      "single less simple argument",
-			arguments:     []*Argument{testArgShort},
+			flags:         []*Flag{testFlagShort},
 			expectedCount: 2,
 		},
 		{
 			testName:      "multiple arguments",
-			arguments:     []*Argument{testArg, testArgShort},
+			flags:         []*Flag{testFlag, testFlagShort},
 			expectedCount: 3,
 		},
 	}
@@ -103,30 +104,30 @@ func TestApp_AddArguments(t *testing.T) {
 	for _, currentTest := range testList {
 		t.Run(currentTest.testName, func(t *testing.T) {
 			cli := App{}
-			cli.AddArguments(currentTest.arguments...)
-			args := cli.GetArguments()
-			if len(args) != currentTest.expectedCount {
-				t.Fatalf("test %q: expected %d arguments, got: %d",
-					currentTest.testName, currentTest.expectedCount, len(cli.argsMap))
+			cli.AddFlags(currentTest.flags...)
+			flags := cli.Flags()
+			if len(flags) != currentTest.expectedCount {
+				t.Fatalf("test %q: expected %d flags, got: %d",
+					currentTest.testName, currentTest.expectedCount, len(cli.flagsMap))
 			}
 
 			keyMap := map[string]bool{}
-			for k := range args {
+			for k := range flags {
 				keyMap[k] = false
 			}
-			for _, v := range currentTest.arguments {
+			for _, v := range currentTest.flags {
 				if v == nil {
 					continue
 				}
-				_, ok := args[v.Name]
+				_, ok := flags[v.Name]
 				if !ok {
-					t.Fatalf("test %q: args not equal, doesn't contain arg name: %q", currentTest.testName, v.Name)
+					t.Fatalf("test %q: flags not equal, doesn't contain flag name: %q", currentTest.testName, v.Name)
 				}
 				keyMap[v.Name] = true
 				for _, vv := range v.AltNames {
-					_, ok = args[vv]
+					_, ok = flags[vv]
 					if !ok {
-						t.Fatalf("test %q: args not equal, doesn't contain arg alt name: %q",
+						t.Fatalf("test %q: flags not equal, doesn't contain flag alt name: %q",
 							currentTest.testName, v.Name)
 					}
 					keyMap[vv] = true
@@ -134,7 +135,7 @@ func TestApp_AddArguments(t *testing.T) {
 			}
 			for k, v := range keyMap {
 				if !v {
-					t.Fatalf("test %q: args not equal, didn't contain arg name: %q", currentTest.testName, k)
+					t.Fatalf("test %q: flags not equal, didn't contain flag name: %q", currentTest.testName, k)
 				}
 			}
 		})
@@ -164,10 +165,10 @@ func TestApp_AddSubCommands(t *testing.T) {
 		t.Run(currentTest.testName, func(t *testing.T) {
 			cli := App{}
 			cli.AddSubCommands(currentTest.subCommands...)
-			subCmds := cli.GetSubCommands()
+			subCmds := cli.SubCommands()
 			if len(subCmds) != currentTest.expectedCount {
-				t.Fatalf("test %q: expected %d arguments, got: %d",
-					currentTest.testName, currentTest.expectedCount, len(cli.argsMap))
+				t.Fatalf("test %q: expected %d subcommands, got: %d",
+					currentTest.testName, currentTest.expectedCount, len(cli.flagsMap))
 			}
 
 			keyMap := map[string]bool{}
@@ -313,7 +314,7 @@ func TestApp_Run(t *testing.T) {
 		t.Run(currentTest.testName, func(t *testing.T) {
 			if currentTest.subCommand != nil {
 				currentTest.app.AddSubCommand(currentTest.subCommand)
-				currentTest.app.SpecificSubCommand = currentTest.subCommand
+				currentTest.app.FoundSubCommand = currentTest.subCommand
 			}
 			err := currentTest.app.Run()
 			if currentTest.hasError == (err == nil) {
@@ -330,11 +331,11 @@ func Test_doParse(t *testing.T) {
 	testList := []struct {
 		testName       string
 		appSubCommands []*SubCommand
-		appArguments   []*Argument
+		appFlags       []*Flag
 		argsToParse    []string
 		hasError       bool
 		errorStr       string
-		checkFunc      func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error
+		checkFunc      func(app *App, exitCalled bool, exitRet int) error
 	}{
 		{
 			testName:    "malformed argument",
@@ -355,18 +356,18 @@ func Test_doParse(t *testing.T) {
 			errorStr:    "unknown argument",
 		},
 		{
-			testName:     "unknown argument partial",
-			appArguments: []*Argument{{Name: "unknown"}},
-			argsToParse:  []string{"--unknown1"},
-			hasError:     true,
-			errorStr:     "unknown argument",
+			testName:    "unknown argument partial",
+			appFlags:    []*Flag{{Name: "unknown"}},
+			argsToParse: []string{"--unknown1"},
+			hasError:    true,
+			errorStr:    "unknown argument",
 		},
 		{
 			testName:       "default subcommand",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
-				if sc.Name != "default" {
-					return fmt.Errorf("expected default, got: %s", sc.Name)
+			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
+				if app.FoundSubCommand.Name != "default" {
+					return fmt.Errorf("expected default, got: %s", app.FoundSubCommand.Name)
 				}
 				return nil
 			},
@@ -378,9 +379,9 @@ func Test_doParse(t *testing.T) {
 				{Name: "non-default", Default: true},
 			},
 			argsToParse: []string{"non-default"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
-				if sc.Name != "non-default" {
-					return fmt.Errorf("expected non-default, got: %s", sc.Name)
+			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
+				if app.FoundSubCommand.Name != "non-default" {
+					return fmt.Errorf("expected non-default, got: %s", app.FoundSubCommand.Name)
 				}
 				return nil
 			},
@@ -388,10 +389,10 @@ func Test_doParse(t *testing.T) {
 		{
 			testName:       "known arg not present",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
-			appArguments:   []*Argument{{Name: "known"}},
+			appFlags:       []*Flag{{Name: "known"}},
 			argsToParse:    []string{"--known"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
-				knownArg := args["known"]
+			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
+				knownArg := app.flagsMap["known"]
 				if !knownArg.isPresent {
 					return fmt.Errorf("expected known arg is not present")
 				}
@@ -401,27 +402,27 @@ func Test_doParse(t *testing.T) {
 		{
 			testName:       "known arg = no value",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
-			appArguments:   []*Argument{{Name: "known"}},
+			appFlags:       []*Flag{{Name: "known"}},
 			argsToParse:    []string{"--known=value"},
 			hasError:       true,
 			errorStr:       "does not take a value",
 		},
 		{
-			testName:     "known arg no value",
-			appArguments: []*Argument{{Name: "known"}},
-			argsToParse:  []string{"--known", "value"},
-			hasError:     true,
-			errorStr:     "does not take a value",
+			testName:    "known arg no value",
+			appFlags:    []*Flag{{Name: "known"}},
+			argsToParse: []string{"--known", "value"},
+			hasError:    true,
+			errorStr:    "does not take a value",
 		},
 		{
 			testName:       "known arg = value",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
-			appArguments:   []*Argument{{Name: "known", TakesValue: true}},
+			appFlags:       []*Flag{{Name: "known", TakesValue: true}},
 			argsToParse:    []string{"--known=value"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
-				knownArg := args["known"]
-				if knownArg.String() != "value" {
-					return fmt.Errorf("expected \"value\", got: %q", knownArg.String())
+			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
+				f := app.flagsMap["known"]
+				if f.String() != "value" {
+					return fmt.Errorf("expected \"value\", got: %q", f.String())
 				}
 				return nil
 			},
@@ -429,32 +430,28 @@ func Test_doParse(t *testing.T) {
 		{
 			testName:       "known arg value",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
-			appArguments:   []*Argument{{Name: "known", TakesValue: true}},
+			appFlags:       []*Flag{{Name: "known", TakesValue: true}},
 			argsToParse:    []string{"--known", "value"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
-				knownArg := args["known"]
-				if knownArg.String() != "value" {
-					return fmt.Errorf("expected \"value\", got: %q", knownArg.String())
+			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
+				f := app.flagsMap["known"]
+				if f.String() != "value" {
+					return fmt.Errorf("expected \"value\", got: %q", f.String())
 				}
 				return nil
 			},
 		},
 		{
-			testName:       "extra same subcommand",
+			testName:       "extra",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
 			argsToParse:    []string{"default", "default"},
-			hasError:       true,
-			errorStr:       "extra subcommand",
-		},
-		{
-			testName: "extra different subcommand",
-			appSubCommands: []*SubCommand{
-				{Name: "default", Default: true},
-				{Name: "extra"},
+			hasError:       false,
+			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
+				expected := []string{"default"}
+				if !reflect.DeepEqual(expected, app.ExtraArguments) {
+					return fmt.Errorf("expected %v, got: %v", expected, app.ExtraArguments)
+				}
+				return nil
 			},
-			argsToParse: []string{"default", "extra"},
-			hasError:    true,
-			errorStr:    "extra subcommand",
 		},
 		{
 			testName: "non-default subcommand with argument and value",
@@ -462,18 +459,18 @@ func Test_doParse(t *testing.T) {
 				{Name: "default", Default: true},
 				{Name: "extra"},
 			},
-			appArguments: []*Argument{{Name: "known", TakesValue: true}},
-			argsToParse:  []string{"--known", "value", "extra"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
-				if sc.Name != "extra" {
-					return fmt.Errorf("expected extra, got: %v", sc.Name)
+			appFlags:    []*Flag{{Name: "known", TakesValue: true}},
+			argsToParse: []string{"--known", "value", "extra"},
+			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
+				if app.FoundSubCommand.Name != "extra" {
+					return fmt.Errorf("expected extra, got: %v", app.FoundSubCommand.Name)
 				}
 				return nil
 			},
 		},
 		{
 			testName: "preparse func fail",
-			appArguments: []*Argument{{Name: "hello", PreParse: func(arg *Argument, app *App) error {
+			appFlags: []*Flag{{Name: "hello", PreParse: func(f *Flag, app *App) error {
 				return errors.New("hello world")
 			}}},
 			hasError: true,
@@ -481,16 +478,16 @@ func Test_doParse(t *testing.T) {
 		},
 		{
 			testName: "preparse func succeed",
-			appArguments: []*Argument{{Name: "hello", PreParse: func(arg *Argument, app *App) error {
+			appFlags: []*Flag{{Name: "hello", PreParse: func(f *Flag, app *App) error {
 				return nil
 			}}},
 		},
 		{
 			testName: "onpresent func fail",
-			appArguments: []*Argument{
+			appFlags: []*Flag{
 				{
 					Name: "hello",
-					OnPresent: func(arg *Argument, argString string, repeatCount int, app *App) error {
+					OnPresent: func(f *Flag, argString string, repeatCount int, app *App) error {
 						return errors.New("hello world")
 					},
 				},
@@ -501,26 +498,26 @@ func Test_doParse(t *testing.T) {
 		},
 		{
 			testName: "onpresent func succeed",
-			appArguments: []*Argument{{Name: "hello", PreParse: func(arg *Argument, app *App) error {
+			appFlags: []*Flag{{Name: "hello", PreParse: func(f *Flag, app *App) error {
 				return nil
 			}}},
 			argsToParse: []string{"--hello"},
 		},
 		{
 			testName: "onpresent func not present",
-			appArguments: []*Argument{
+			appFlags: []*Flag{
 				{Name: "notused"},
-				{Name: "hello", OnPresent: func(arg *Argument, argString string, repeatCount int, app *App) error {
+				{Name: "hello", OnPresent: func(f *Flag, argString string, repeatCount int, app *App) error {
 					return errors.New("hello world")
 				}}},
 			argsToParse: []string{"--notused"},
 		},
 		{
-			testName:     "args name repeated",
-			appArguments: []*Argument{{Name: "v"}},
-			argsToParse:  []string{"-vvvvv"},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
-				arg := args["v"]
+			testName:    "args name repeated",
+			appFlags:    []*Flag{{Name: "v"}},
+			argsToParse: []string{"-vvvvv"},
+			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
+				arg := app.flagsMap["v"]
 				if arg.RepeatCount != 5 {
 					return fmt.Errorf("arg count mismatched, expected 5, got: %d", arg.RepeatCount)
 				}
@@ -529,7 +526,7 @@ func Test_doParse(t *testing.T) {
 		},
 		{
 			testName: "onset 1",
-			appArguments: []*Argument{{Name: "testonset", OnSet: func(arg *Argument, argString string, newValue interface{}, app *App) error {
+			appFlags: []*Flag{{Name: "testonset", OnSet: func(f *Flag, argString string, newValue interface{}, app *App) error {
 				if newValue == "hello" {
 					return errors.New("hello set!")
 				}
@@ -541,7 +538,7 @@ func Test_doParse(t *testing.T) {
 		},
 		{
 			testName: "onset 2",
-			appArguments: []*Argument{{Name: "testonset", OnSet: func(arg *Argument, argString string, newValue interface{}, app *App) error {
+			appFlags: []*Flag{{Name: "testonset", OnSet: func(f *Flag, argString string, newValue interface{}, app *App) error {
 				if newValue == "hello" {
 					return errors.New("hello set!")
 				}
@@ -559,7 +556,7 @@ func Test_doParse(t *testing.T) {
 		},
 		{
 			testName: "postparse func fail",
-			appArguments: []*Argument{{Name: "hello", PostParse: func(arg *Argument, sc *SubCommand, app *App) error {
+			appFlags: []*Flag{{Name: "hello", PostParse: func(f *Flag, sc *SubCommand, app *App) error {
 				return errors.New("hello world")
 			}}},
 			hasError: true,
@@ -567,16 +564,16 @@ func Test_doParse(t *testing.T) {
 		},
 		{
 			testName: "postparse func succeed",
-			appArguments: []*Argument{{Name: "hello", PostParse: func(arg *Argument, sc *SubCommand, app *App) error {
+			appFlags: []*Flag{{Name: "hello", PostParse: func(f *Flag, sc *SubCommand, app *App) error {
 				return nil
 			}}},
 		},
 		{
 			testName: "postparse func ErrExitSuccess",
-			appArguments: []*Argument{{Name: "hello", PostParse: func(arg *Argument, sc *SubCommand, app *App) error {
+			appFlags: []*Flag{{Name: "hello", PostParse: func(f *Flag, sc *SubCommand, app *App) error {
 				return ErrExitSuccess
 			}}},
-			checkFunc: func(sc *SubCommand, args map[string]*Argument, exitCalled bool, exitRet int) error {
+			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
 				if !exitCalled {
 					return errors.New("no exit called")
 				}
@@ -592,14 +589,14 @@ func Test_doParse(t *testing.T) {
 		t.Run(currentTest.testName, func(t *testing.T) {
 			exitCalled := false
 			exitRet := 0
-			app := App{
+			app := &App{
 				exitFunc: func(i int) {
 					exitCalled = true
 					exitRet = i
 				},
 			}
 			app.AddSubCommands(currentTest.appSubCommands...)
-			app.AddArguments(currentTest.appArguments...)
+			app.AddFlags(currentTest.appFlags...)
 			err := app.Parse(currentTest.argsToParse)
 			if currentTest.hasError == (err == nil) {
 				t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
@@ -608,7 +605,7 @@ func Test_doParse(t *testing.T) {
 				t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
 			}
 			if currentTest.checkFunc != nil {
-				if err := currentTest.checkFunc(app.SpecificSubCommand, app.argsMap, exitCalled, exitRet); err != nil {
+				if err := currentTest.checkFunc(app, exitCalled, exitRet); err != nil {
 					t.Fatalf("test %q: check: %v", currentTest.testName, err)
 				}
 			}

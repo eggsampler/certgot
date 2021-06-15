@@ -11,15 +11,15 @@ import (
 )
 
 var (
-	regArgLong  = regexp.MustCompile(`^--([[:alnum:]]+(?:-[[:alnum:]]+)*)(?:=(.+))?$`)
-	regArgShort = regexp.MustCompile("^-(a+|b+|c+|d+|e+|f+|g+|h+|i+|j+|k+|l+|m+|n+|o+|p+|q+|r+|s+|t+|u+|v+|w+|x+|y+|z+)(?:=(.+))?$")
+	regFlagLong  = regexp.MustCompile(`^--([[:alnum:]]+(?:-[[:alnum:]]+)*)(?:=(.+))?$`)
+	regFlagShort = regexp.MustCompile("^-(a+|b+|c+|d+|e+|f+|g+|h+|i+|j+|k+|l+|m+|n+|o+|p+|q+|r+|s+|t+|u+|v+|w+|x+|y+|z+)(?:=(.+))?$")
 )
 
-func extractArg(s string) []string {
+func extractFlag(s string) []string {
 	if strings.HasPrefix(s, "--") {
-		return regArgLong.FindStringSubmatch(s)
+		return regFlagLong.FindStringSubmatch(s)
 	}
-	return regArgShort.FindStringSubmatch(s)
+	return regFlagShort.FindStringSubmatch(s)
 }
 
 type App struct {
@@ -28,10 +28,10 @@ type App struct {
 	FuncPreRun      func(*App) error
 	FuncPostRun     func(*App, interface{})
 	FuncRecover     func(*App, interface{})
-	FuncHelpPrinter func(*App)
+	FuncHelpPrinter func(*App, string)
 
-	argsMap  map[string]*Argument
-	argsList []*Argument
+	flagsMap  map[string]*Flag
+	flagsList []*Flag
 
 	subCommandMap     map[string]*SubCommand
 	subCommandList    []*SubCommand
@@ -40,8 +40,9 @@ type App struct {
 	helpTopics []HelpTopic
 
 	// context
-	OriginalArgs       []string
-	SpecificSubCommand *SubCommand
+	OriginalArguments []string
+	FoundSubCommand   *SubCommand
+	ExtraArguments    []string
 
 	// mainly for testing
 	exitFunc func(int)
@@ -56,40 +57,44 @@ func (app App) Exit(i int) {
 	os.Exit(i)
 }
 
-func (app *App) GetArguments() map[string]*Argument {
-	return app.argsMap
+func (app *App) Flags() map[string]*Flag {
+	return app.flagsMap
 }
 
 // TODO: not sure this is super helpful
 // ie, should apps specifically store their args as variables
 // and refer to them by the variable
 // rather than this getter func
-func (app *App) GetArgument(key string) *Argument {
-	return app.argsMap[key]
+func (app *App) Flag(key string) *Flag {
+	return app.flagsMap[key]
 }
 
-func (app *App) GetSubCommands() map[string]*SubCommand {
+func (app *App) SubCommands() map[string]*SubCommand {
 	return app.subCommandMap
 }
 
-func (app *App) AddArgument(argument *Argument) {
-	// TODO: error/panic if argument name contains space?
-	if argument == nil {
+func (app *App) SubCommand(key string) *SubCommand {
+	return app.subCommandMap[key]
+}
+
+func (app *App) AddFlag(f *Flag) {
+	// TODO: error/panic if f name contains space?
+	if f == nil {
 		return
 	}
-	app.argsList = append(app.argsList, argument)
-	if app.argsMap == nil {
-		app.argsMap = map[string]*Argument{}
+	app.flagsList = append(app.flagsList, f)
+	if app.flagsMap == nil {
+		app.flagsMap = map[string]*Flag{}
 	}
-	app.argsMap[argument.Name] = argument
-	for _, altName := range argument.AltNames {
-		app.argsMap[altName] = argument
+	app.flagsMap[f.Name] = f
+	for _, altName := range f.AltNames {
+		app.flagsMap[altName] = f
 	}
 }
 
-func (app *App) AddArguments(arguments ...*Argument) {
-	for _, v := range arguments {
-		app.AddArgument(v)
+func (app *App) AddFlags(f ...*Flag) {
+	for _, v := range f {
+		app.AddFlag(v)
 	}
 }
 
@@ -146,24 +151,31 @@ func (app *App) Run() error {
 		}
 	}
 
-	if app.SpecificSubCommand != nil && app.SpecificSubCommand.Run != nil {
-		if err := app.SpecificSubCommand.Run(app); err != nil {
+	if app.FoundSubCommand != nil && app.FoundSubCommand.Run != nil {
+		if err := app.FoundSubCommand.Run(app); err != nil {
 			postRunBlah = err
 			return err
 		}
 	} else {
-		app.PrintHelp()
+		app.PrintHelp("")
 	}
 
 	return nil
 }
 
-func joinArgNames(arg Argument) string {
-	s := []string{
-		argDashes(arg.Name) + arg.Name,
+func flagDashes(s string) string {
+	if len(s) == 1 {
+		return "-"
 	}
-	for _, n := range arg.AltNames {
-		s = append(s, argDashes(n)+n)
+	return "--"
+}
+
+func joinFlagNames(f Flag) string {
+	s := []string{
+		flagDashes(f.Name) + f.Name,
+	}
+	for _, n := range f.AltNames {
+		s = append(s, flagDashes(n)+n)
 	}
 	return strings.Join(s, "/")
 }
@@ -177,10 +189,10 @@ func (app *App) Parse(argsToParse []string) error {
 		}
 	*/
 
-	for _, arg := range app.argsMap {
-		if arg.PreParse != nil {
-			if err := arg.PreParse(arg, app); err != nil {
-				return fmt.Errorf("error in argument %q PreParse func: %w", joinArgNames(*arg), err)
+	for _, f := range app.flagsMap {
+		if f.PreParse != nil {
+			if err := f.PreParse(f, app); err != nil {
+				return fmt.Errorf("error in argument %q PreParse func: %w", joinFlagNames(*f), err)
 			}
 		}
 	}
@@ -189,82 +201,84 @@ func (app *App) Parse(argsToParse []string) error {
 
 	for argIdx, v := range argsToParse {
 		if strings.HasPrefix(v, "-") {
-			argMatch := extractArg(v)
-			if len(argMatch) < 2 {
+			flagMatch := extractFlag(v)
+			if len(flagMatch) < 2 {
 				return fmt.Errorf("invalid argument: %s", argsToParse[argIdx])
 			}
 
-			argLast = argMatch[1]
+			argLast = flagMatch[1]
 			var argCount int
 			if !strings.HasPrefix(v, "--") {
 				argCount = len(argLast)
 				argLast = string(argLast[0])
 			} else {
 				argCount = 1
-				argLast = argMatch[1]
+				argLast = flagMatch[1]
 			}
 
-			arg := app.argsMap[argLast]
-			if arg == nil {
+			f := app.flagsMap[argLast]
+			if f == nil {
 				return fmt.Errorf("unknown argument: %s", v)
 			}
 
-			if !arg.isPresent && arg.OnPresent != nil {
-				if err := arg.OnPresent(arg, argLast, argCount, app); err != nil {
-					return fmt.Errorf("error in argument %q OnPresent func: %w", joinArgNames(*arg), err)
+			if !f.isPresent && f.OnPresent != nil {
+				if err := f.OnPresent(f, argLast, argCount, app); err != nil {
+					return fmt.Errorf("error in argument %q OnPresent func: %w", joinFlagNames(*f), err)
 				}
 			}
-			arg.isPresent = true
-			arg.isPresentInArgument = true
-			arg.RepeatCount = argCount
+			f.isPresent = true
+			f.isPresentInArgument = true
+			f.RepeatCount = argCount
 
-			if strings.Contains(argMatch[0], "=") {
+			if strings.Contains(flagMatch[0], "=") {
 				argLast = ""
 
-				if arg.OnSet != nil {
-					if err := arg.OnSet(arg, argLast, argMatch[2], app); err != nil {
-						return fmt.Errorf("error in argument %q OnSet func: %w", joinArgNames(*arg), err)
+				if f.OnSet != nil {
+					if err := f.OnSet(f, argLast, flagMatch[2], app); err != nil {
+						return fmt.Errorf("error in argument %q OnSet func: %w", joinFlagNames(*f), err)
 					}
 				}
 
-				if err := arg.Set(argMatch[2]); err != nil {
+				if err := f.Set(flagMatch[2]); err != nil {
 					return fmt.Errorf("error setting inline argument %s: %w", v, err)
 				}
 			}
 		} else if argLast != "" {
-			arg := app.argsMap[argLast]
-			if arg.OnSet != nil {
-				if err := arg.OnSet(arg, argLast, v, app); err != nil {
-					return fmt.Errorf("error in argument %q OnSet func: %w", joinArgNames(*arg), err)
+			f := app.flagsMap[argLast]
+			if f.OnSet != nil {
+				if err := f.OnSet(f, argLast, v, app); err != nil {
+					return fmt.Errorf("error in argument %q OnSet func: %w", joinFlagNames(*f), err)
 				}
 			}
-			if err := arg.Set(v); err != nil {
+			if err := f.Set(v); err != nil {
 				return fmt.Errorf("error setting argument %q: %w", argLast, err)
 			}
 			argLast = ""
-		} else if app.SpecificSubCommand != nil {
-			return fmt.Errorf("extra subcommand %q found, already provided %q", v, app.SpecificSubCommand.Name)
+		} else if app.FoundSubCommand != nil {
+			// anything after a subcommand has been found is added to the extra arguments
+			app.ExtraArguments = append(app.ExtraArguments, v)
 		} else {
-			app.SpecificSubCommand = app.subCommandMap[v]
-			if app.SpecificSubCommand == nil {
+			// if no subcommand has been found, attempt to locate it
+			app.FoundSubCommand = app.subCommandMap[v]
+			if app.FoundSubCommand == nil {
 				return fmt.Errorf("invalid subcommand: %s", v)
 			}
 		}
 	}
 
-	if app.SpecificSubCommand == nil {
-		app.SpecificSubCommand = app.subCommandMap[app.defaultSubCommand]
+	if app.FoundSubCommand == nil {
+		app.FoundSubCommand = app.subCommandMap[app.defaultSubCommand]
 	}
 
-	for _, arg := range app.argsMap {
-		if arg.PostParse != nil {
-			if err := arg.PostParse(arg, app.SpecificSubCommand, app); err != nil {
+	for _, f := range app.flagsMap {
+		if f.PostParse != nil {
+			if err := f.PostParse(f, app.FoundSubCommand, app); err != nil {
 				if errors.Is(err, ErrExitSuccess) {
-					log.WithError(err).WithField("argName", arg.Name).Debug("PostParse returned ErrExitSuccess")
+					log.WithError(err).WithField("flagName", f.Name).Debug("PostParse returned ErrExitSuccess")
 					app.Exit(0)
 					return nil
 				}
-				return fmt.Errorf("error in argument %q PostParse func: %w", joinArgNames(*arg), err)
+				return fmt.Errorf("error in argument %q PostParse func: %w", joinFlagNames(*f), err)
 			}
 		}
 	}
@@ -272,25 +286,17 @@ func (app *App) Parse(argsToParse []string) error {
 	return nil
 }
 
-func (app *App) LoadConfig(cfgFile *Argument) error {
+func (app *App) LoadConfig(cfgFile *Flag) error {
 	return loadConfig(app, cfgFile, os.DirFS(""))
 }
 
-func (app *App) PrintHelp(topic ...string) {
-	// TODO: not sure if this is useful, topic isn't used yet, will it be used??
-	if len(topic) > 0 {
-		helpArg := app.GetArgument("help")
-		if helpArg != nil {
-			_ = helpArg.Set(topic[0])
-		}
-	}
-
+func (app *App) PrintHelp(topic string) {
 	if app.FuncHelpPrinter != nil {
-		app.FuncHelpPrinter(app)
+		app.FuncHelpPrinter(app, topic)
 		return
 	}
 
-	DefaultHelpPrinter(app)
+	DefaultHelpPrinter(app, topic)
 }
 
 func (app *App) AddHelpTopic(topic HelpTopic) {

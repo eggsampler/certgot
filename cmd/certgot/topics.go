@@ -3,10 +3,10 @@ package main
 import "github.com/eggsampler/certgot/cli"
 
 const (
-	TOPIC_USAGE    = "usage"
-	TOPIC_COMMON   = "common"
-	TOPIC_MANAGE   = "manage"
-	TOPIC_OPTIONAL = "optional"
+	TOPIC_USAGE               = "usage"
+	TOPIC_COMMON              = "common"
+	TOPIC_MANAGE_CERTIFICATES = "manage"
+	TOPIC_OPTIONAL            = "optional"
 )
 
 var (
@@ -24,7 +24,7 @@ var (
 			ShowFunc: cli.ShowNoTopic,
 		},
 		{
-			Topic:    TOPIC_MANAGE,
+			Topic:    TOPIC_MANAGE_CERTIFICATES,
 			Name:     "manage certificates",
 			ShowFunc: cli.ShowNoTopic,
 		},

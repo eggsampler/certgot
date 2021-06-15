@@ -12,15 +12,15 @@ import (
 
 func doPreRun(app *cli.App) error {
 	ll := log.Fields{}
-	for _, v := range app.GetArguments() {
+	for _, v := range app.Flags() {
 		if !v.HasValue() {
 			continue
 		}
 		ll = ll.WithField(v.Name, v.Value())
 	}
 	ll.Debug("cli arguments")
-	if app.SpecificSubCommand != nil {
-		log.WithField("subcommand", app.SpecificSubCommand.Name).Debug("cli subcommand")
+	if app.FoundSubCommand != nil {
+		log.WithField("subcommand", app.FoundSubCommand.Name).Debug("cli subcommand")
 	} else {
 		log.Debug("no cli subcommand")
 	}
@@ -40,9 +40,9 @@ func doPreRun(app *cli.App) error {
 
 func getDirectories() []string {
 	return []string{
-		argConfigDir.StringOrDefault(),
-		argLogsDir.StringOrDefault(),
-		argWorkDir.StringOrDefault(),
+		flagConfigDir.StringOrDefault(),
+		flagLogsDir.StringOrDefault(),
+		flagWorkDir.StringOrDefault(),
 	}
 }
 
