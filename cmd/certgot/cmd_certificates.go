@@ -13,18 +13,18 @@ import (
 )
 
 const (
-	COMMAND_CERTIFICATES = "certificates"
+	CMD_CERTIFICATES = "certificates"
 )
 
 var (
 	cmdCertificates = &cli.SubCommand{
-		Name:       COMMAND_CERTIFICATES,
+		Name:       CMD_CERTIFICATES,
 		Run:        commandCertificates,
 		HelpTopics: []string{TOPIC_MANAGE_CERTIFICATES},
+		Flags:      []string{FLAG_DOMAIN, FLAG_CERT_NAME},
 		Usage: cli.SubCommandUsage{
 			UsageDescription:    "Display information about certificates you have from Certbot",
 			ArgumentDescription: "List certificates managed by Certbot",
-			Flags:               []string{FLAG_DOMAIN, FLAG_CERT_NAME},
 		},
 	}
 
@@ -32,7 +32,11 @@ var (
 )
 
 func commandCertificates(app *cli.App) error {
-	renewalDir := filepath.Join(flagConfigDir.StringOrDefault(), "renewal")
+	configDir, err := flagConfigDir.String(getFlagValues(true))
+	if err != nil {
+		return fmt.Errorf("error getting config dir: %w", err)
+	}
+	renewalDir := filepath.Join(configDir, "renewal")
 	renewalConfPattern := filepath.Join(renewalDir, "*.conf")
 	renewalFiles, err := filepath.Glob(renewalConfPattern)
 	if err != nil {
@@ -42,10 +46,18 @@ func commandCertificates(app *cli.App) error {
 	log.WithField("path", renewalConfPattern).WithField("count", len(renewalFiles)).Debug("found renewals files")
 
 	wantedCertName := ""
-	if flagCertName.IsPresent() && flagCertName.HasValue() {
-		wantedCertName = flagCertName.String()
-	} else if flagDomains.IsPresent() && flagDomains.HasValue() {
-		wantedCertName = flagDomains.StringSlice()[0]
+	if flagCertName.IsPresent() && flagCertName.Value.IsSet() {
+		name, err := flagCertName.String(getFlagValues(true))
+		if err != nil {
+			return fmt.Errorf("error getting cert name flag value: %w", err)
+		}
+		wantedCertName = name
+	} else if flagDomains.IsPresent() && flagDomains.Value.IsSet() {
+		names, err := flagDomains.StringSlice(getFlagValues(true))
+		if err != nil {
+			return fmt.Errorf("error getting domains flag value: %w", err)
+		}
+		wantedCertName = names[0]
 	}
 
 	type foundCert struct {

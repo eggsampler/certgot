@@ -112,7 +112,11 @@ func loadConfig(app *App, cfgFile *Flag, sys fs.FS) error {
 		return errors.New("no config file argument provided")
 	}
 	var cfg []configEntry
-	for _, fileName := range cfgFile.StringSliceOrDefault() {
+	cfgFiles, err := cfgFile.StringSlice(true, false, false, true)
+	if err != nil && err != ErrNoValueSet {
+		return fmt.Errorf("error getting config files: %w", err)
+	}
+	for _, fileName := range cfgFiles {
 		fileName = parsePath(fileName, os.Getenv, user.Current)
 		ll := log.WithField("filename", fileName)
 		ll.Trace("attempting to read config file")

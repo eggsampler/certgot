@@ -12,12 +12,17 @@ import (
 // TODO: use this for other functions on Flag ?
 var ErrExitSuccess = errors.New("done")
 
+var ErrRequiresValue = errors.New("argument requires a value")
+
+// TODO: this error seems hacky, definitely rethink value
+var ErrNoValueProvided = errors.New("no value provided")
+
 // RequireValueIfSet can be used in Flag.PostParse to ensure an argument, if present, has a value
 // TODO: determine if this needs to be another property on Flag so that Flag.PostParse can still be used otherwise
 func RequireValueIfSet() func(f *Flag, sc *SubCommand, app *App) error {
 	return func(f *Flag, sc *SubCommand, app *App) error {
-		if f.TakesValue && f.isPresent && !f.HasValue() {
-			return errors.New("argument requires a value")
+		if f.TakesValue && f.isPresent && !f.Value.IsSet() {
+			return ErrRequiresValue
 		}
 		return nil
 	}
@@ -26,8 +31,8 @@ func RequireValueIfSet() func(f *Flag, sc *SubCommand, app *App) error {
 type Flag struct {
 	Name          string
 	AltNames      []string
-	DefaultValue  DefaultValue
 	TakesValue    bool
+	Value         Value // TODO: not expose this field somehow?
 	RepeatCount   int
 	TakesMultiple bool
 
@@ -41,8 +46,6 @@ type Flag struct {
 
 	isPresent           bool
 	isPresentInArgument bool
-
-	value interface{}
 }
 
 type ArgumentUsage struct {
@@ -58,25 +61,33 @@ func (f Flag) IsPresentInArgument() bool {
 	return f.isPresentInArgument
 }
 
-func (f Flag) HasValue() bool {
-	return f.value != nil
-}
-
-func (f Flag) Value() interface{} {
-	return f.value
-}
-
 func (f *Flag) Set(newValue interface{}) error {
+	if f.Value == nil {
+		return ErrNoValueProvided
+	}
+	// throw an error if this flag doesn't explicitly take a value
 	if !f.TakesValue {
 		return fmt.Errorf("argument does not take a value")
 	}
+	// set the value if the flag doesn't take multiples (multiples being: -d blah1 -d blah2, or -d blah1,blah2)
 	if !f.TakesMultiple {
-		f.value = newValue
+		f.Value.Set(newValue)
 		return nil
 	}
-	if f.value == nil {
-		f.value = reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(newValue)), 0, 10).Interface()
+	// the variable to store the value in for multiple types
+	var v interface{}
+	if !f.Value.IsSet() {
+		// first time value has been set (ie, for first instance of flag being parsed)
+		v = reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(newValue)), 0, 10).Interface()
+	} else {
+		// flag has already been set once, grab the underlying value to use to append more values to
+		var err error
+		v, err = f.Value.Get(true, false, false, false)
+		if err != nil {
+			return fmt.Errorf("error getting underlying value to append multiples: %w", err)
+		}
 	}
+	// if the new value is a string, and contains multiple comma-separated elements, extract each one
 	var valsToSet []reflect.Value
 	if strVal, ok := newValue.(string); ok && strings.Contains(strVal, ",") {
 		vals := strings.Split(strVal, ",")
@@ -84,66 +95,57 @@ func (f *Flag) Set(newValue interface{}) error {
 			valsToSet = append(valsToSet, reflect.ValueOf(strings.TrimSpace(sv)))
 		}
 	} else {
+		// otherwise, just use the single value
 		valsToSet = []reflect.Value{reflect.ValueOf(newValue)}
 	}
-	reflect.ValueOf(&f.value).Elem().Set(reflect.Append(reflect.ValueOf(f.value), valsToSet...))
+	// append parsed & extracted values to underlying value
+	reflect.ValueOf(&v).Elem().Set(reflect.Append(reflect.ValueOf(v), valsToSet...))
+	// and store to underlying value itself
+	f.Value.Set(v)
 	return nil
 }
 
-func (f Flag) String() string {
-	s, _ := f.value.(string)
-	return s
+func (f Flag) String(nonInteractive, forceInteractive, isTerminal, includeDefault bool) (string, error) {
+	if f.Value == nil {
+		return "", ErrNoValueProvided
+	}
+	v, err := f.Value.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
+	if err != nil {
+		return "", err
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", fmt.Errorf("value type is not a string (got: %T)", v)
+	}
+	return s, nil
 }
 
-func (f Flag) StringOrDefault() string {
-	if f.HasValue() {
-		s, ok := f.value.(string)
-		if ok {
-			return s
-		}
+func (f Flag) StringSlice(nonInteractive, forceInteractive, isTerminal, includeDefault bool) ([]string, error) {
+	if f.Value == nil {
+		return nil, ErrNoValueProvided
 	}
-	if f.DefaultValue == nil {
-		return ""
+	v, err := f.Value.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
+	if err != nil {
+		return nil, err
 	}
-	s, _ := f.DefaultValue.Get().(string)
-	return s
+	s, ok := v.([]string)
+	if !ok {
+		return nil, fmt.Errorf("value type is not a string slice (got: %T)", v)
+	}
+	return s, nil
 }
 
-func (f Flag) StringSlice() []string {
-	s, _ := f.value.([]string)
-	return s
-}
-
-func (f Flag) StringSliceOrDefault() []string {
-	if f.HasValue() {
-		s, ok := f.value.([]string)
-		if ok {
-			return s
-		}
+func (f Flag) Bool(nonInteractive, forceInteractive, isTerminal, includeDefault bool) (bool, error) {
+	if f.Value == nil {
+		return false, ErrNoValueProvided
 	}
-	if f.DefaultValue == nil {
-		return nil
+	v, err := f.Value.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
+	if err != nil {
+		return false, err
 	}
-	s, _ := f.DefaultValue.Get().([]string)
-	return s
-}
-
-func (f Flag) Bool() bool {
-	return f.value.(bool)
-}
-
-func (f Flag) BoolOrDefault() bool {
-	if f.isPresent {
-		b, _ := f.value.(bool)
-		return b
+	b, ok := v.(bool)
+	if !ok {
+		return false, fmt.Errorf("value type is not a bool (got: %T)", v)
 	}
-	if f.DefaultValue == nil {
-		return false
-	}
-	defaultVal := f.DefaultValue.Get()
-	if defaultVal == nil {
-		return false
-	}
-	b, _ := defaultVal.(bool)
-	return b
+	return b, nil
 }

@@ -42,7 +42,9 @@ func main() {
 		flagWebRoot,
 		flagAuthenticator,
 		flagDomains,
-		flagCertName)
+		flagCertName,
+		flagNonInteractive,
+		flagForceInteractive)
 
 	errExit := func(err error) {
 		if err != nil {
@@ -54,7 +56,9 @@ func main() {
 	args := os.Args[1:]
 	log.WithField("flags", args).Debug("parsing arguments")
 	errExit(app.Parse(args))
-	log.WithField("config", flagConfig.StringSliceOrDefault()).Debug("loading config")
+	cfgFiles, err := flagConfig.StringSlice(getFlagValues(true))
+	errExit(err)
+	log.WithField("config", cfgFiles).Debug("loading config")
 	errExit(app.LoadConfig(flagConfig))
 	log.Debug("running")
 	errExit(app.Run())

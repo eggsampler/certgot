@@ -124,10 +124,14 @@ func Test_setConfig(t *testing.T) {
 			config:   []configEntry{{key: "hello", hasValue: true, value: "world"}},
 			args: map[string]*Flag{"hello": {
 				TakesValue: true,
+				Value:      &SimpleValue{},
 			}},
 			checkFunc: func(config map[string]configEntry, args map[string]*Flag) error {
 				arg := args["hello"]
-				val := arg.String()
+				val, err := arg.String(false, false, false, false)
+				if err != nil {
+					return err
+				}
 				if val != "world" {
 					return fmt.Errorf("world != %s", val)
 				}
@@ -144,13 +148,15 @@ func Test_setConfig(t *testing.T) {
 	}
 
 	for _, currentTest := range testList {
-		err := setConfig(currentTest.config, currentTest.args)
-		if currentTest.hasError == (err == nil) {
-			t.Fatalf("%q: expected error %v, got: %v", currentTest.testName, currentTest.hasError, err)
-		}
-		if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
-			t.Fatalf("test %q: expected %q in error: %v", currentTest.testName, currentTest.errorStr, err)
-		}
+		t.Run(currentTest.testName, func(t *testing.T) {
+			err := setConfig(currentTest.config, currentTest.args)
+			if currentTest.hasError == (err == nil) {
+				t.Fatalf("expected error %v, got: %v", currentTest.hasError, err)
+			}
+			if err != nil && !strings.Contains(err.Error(), currentTest.errorStr) {
+				t.Fatalf("expected %q in error: %v", currentTest.errorStr, err)
+			}
+		})
 	}
 }
 
@@ -345,7 +351,7 @@ func Test_loadConfig(t *testing.T) {
 			name: "empty arg",
 			args: args{
 				app:     &App{},
-				cfgFile: &Flag{},
+				cfgFile: &Flag{Value: NewSimpleValueDefault([]string{})},
 			},
 			wantErr: false,
 		},
@@ -354,7 +360,7 @@ func Test_loadConfig(t *testing.T) {
 			args: args{
 				app: &App{},
 				cfgFile: &Flag{
-					DefaultValue: SimpleValue{Value: []string{"hello"}},
+					Value: NewSimpleValueDefault([]string{"hello"}),
 				},
 				sys: mockFS{},
 			},
@@ -365,8 +371,8 @@ func Test_loadConfig(t *testing.T) {
 			args: args{
 				app: &App{},
 				cfgFile: &Flag{
-					DefaultValue: SimpleValue{Value: []string{"hello"}},
-					isPresent:    true,
+					Value:     NewSimpleValueDefault([]string{"hello"}),
+					isPresent: true,
 				},
 				sys: mockFS{},
 			},
@@ -378,8 +384,8 @@ func Test_loadConfig(t *testing.T) {
 			args: args{
 				app: &App{},
 				cfgFile: &Flag{
-					DefaultValue: SimpleValue{Value: []string{"hello"}},
-					isPresent:    true,
+					Value:     NewSimpleValueDefault([]string{"hello"}),
+					isPresent: true,
 				},
 				sys: mockFS{file: errorFile{}},
 			},
@@ -391,8 +397,8 @@ func Test_loadConfig(t *testing.T) {
 			args: args{
 				app: &App{},
 				cfgFile: &Flag{
-					DefaultValue: SimpleValue{Value: []string{"hello"}},
-					isPresent:    true,
+					Value:     NewSimpleValueDefault([]string{"hello"}),
+					isPresent: true,
 				},
 				sys: mockFS{file: emptyFile{}},
 			},

@@ -402,14 +402,14 @@ func Test_doParse(t *testing.T) {
 		{
 			testName:       "known arg = no value",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
-			appFlags:       []*Flag{{Name: "known"}},
+			appFlags:       []*Flag{{Name: "known", Value: &SimpleValue{}}},
 			argsToParse:    []string{"--known=value"},
 			hasError:       true,
 			errorStr:       "does not take a value",
 		},
 		{
 			testName:    "known arg no value",
-			appFlags:    []*Flag{{Name: "known"}},
+			appFlags:    []*Flag{{Name: "known", Value: &SimpleValue{}}},
 			argsToParse: []string{"--known", "value"},
 			hasError:    true,
 			errorStr:    "does not take a value",
@@ -417,12 +417,16 @@ func Test_doParse(t *testing.T) {
 		{
 			testName:       "known arg = value",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
-			appFlags:       []*Flag{{Name: "known", TakesValue: true}},
+			appFlags:       []*Flag{{Name: "known", TakesValue: true, Value: &SimpleValue{}}},
 			argsToParse:    []string{"--known=value"},
 			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
 				f := app.flagsMap["known"]
-				if f.String() != "value" {
-					return fmt.Errorf("expected \"value\", got: %q", f.String())
+				s, err := f.String(false, false, false, false)
+				if err != nil {
+					return err
+				}
+				if s != "value" {
+					return fmt.Errorf("expected \"value\", got: %q", s)
 				}
 				return nil
 			},
@@ -430,12 +434,16 @@ func Test_doParse(t *testing.T) {
 		{
 			testName:       "known arg value",
 			appSubCommands: []*SubCommand{{Name: "default", Default: true}},
-			appFlags:       []*Flag{{Name: "known", TakesValue: true}},
+			appFlags:       []*Flag{{Name: "known", TakesValue: true, Value: &SimpleValue{}}},
 			argsToParse:    []string{"--known", "value"},
 			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
 				f := app.flagsMap["known"]
-				if f.String() != "value" {
-					return fmt.Errorf("expected \"value\", got: %q", f.String())
+				s, err := f.String(false, false, false, false)
+				if err != nil {
+					return err
+				}
+				if s != "value" {
+					return fmt.Errorf("expected \"value\", got: %q", s)
 				}
 				return nil
 			},
@@ -459,7 +467,7 @@ func Test_doParse(t *testing.T) {
 				{Name: "default", Default: true},
 				{Name: "extra"},
 			},
-			appFlags:    []*Flag{{Name: "known", TakesValue: true}},
+			appFlags:    []*Flag{{Name: "known", TakesValue: true, Value: &SimpleValue{}}},
 			argsToParse: []string{"--known", "value", "extra"},
 			checkFunc: func(app *App, exitCalled bool, exitRet int) error {
 				if app.FoundSubCommand.Name != "extra" {

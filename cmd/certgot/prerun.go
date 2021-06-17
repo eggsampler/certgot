@@ -13,10 +13,16 @@ import (
 func doPreRun(app *cli.App) error {
 	ll := log.Fields{}
 	for _, v := range app.Flags() {
-		if !v.HasValue() {
-			continue
+		if v.TakesValue && v.Value != nil && v.Value.IsSet() {
+			fv, err := v.Value.Get(getFlagValues(true))
+			if err != nil {
+				ll = ll.WithError(err)
+			} else {
+				ll = ll.WithField(v.Name, fv)
+			}
+		} else if v.IsPresent() {
+			ll = ll.WithField(v.Name, "-")
 		}
-		ll = ll.WithField(v.Name, v.Value())
 	}
 	ll.Debug("cli arguments")
 	if app.FoundSubCommand != nil {
@@ -25,25 +31,40 @@ func doPreRun(app *cli.App) error {
 		log.Debug("no cli subcommand")
 	}
 
-	dirs := getDirectories()
+	dirs, err := getDirectories()
+	if err != nil {
+		return fmt.Errorf("Error fetching directories: %w", err)
+	}
 
 	if err := setupDirectories(dirs); err != nil {
-		return fmt.Errorf("Error setting up directories: %v\n", err)
+		return fmt.Errorf("Error setting up directories: %v", err)
 	}
 
 	if err := setupLocks(dirs); err != nil {
-		return fmt.Errorf("Error setting up lock files: %v\n", err)
+		return fmt.Errorf("Error setting up lock files: %v", err)
 	}
 
 	return nil
 }
 
-func getDirectories() []string {
-	return []string{
-		flagConfigDir.StringOrDefault(),
-		flagLogsDir.StringOrDefault(),
-		flagWorkDir.StringOrDefault(),
+func getDirectories() ([]string, error) {
+	cd, err := flagConfigDir.String(true, false, false, true)
+	if err != nil {
+		return nil, err
 	}
+	ld, err := flagLogsDir.String(true, false, false, true)
+	if err != nil {
+		return nil, err
+	}
+	wd, err := flagWorkDir.String(true, false, false, true)
+	if err != nil {
+		return nil, err
+	}
+	return []string{
+		cd,
+		ld,
+		wd,
+	}, nil
 }
 
 func setupDirectories(dirs []string) error {

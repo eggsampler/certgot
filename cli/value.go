@@ -2,54 +2,114 @@ package cli
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
 
-// DefaultValue represents a type used for a Flag.DefaultValue
+var ErrNoValueSet = errors.New("no value set")
+
+// Value represents a type used for a Flag.DefaultValue
 // These can be used to represent simple types like a string, or boolean
 // But also more complex types, for example ones that can prompt user for input
-type DefaultValue interface {
+type Value interface {
 	// Get returns the value set
-	Get() interface{}
+	Get(nonInteractive, forceInteractive, isTerminal, includeDefault bool) (interface{}, error)
 
-	// GetUsageDefault shows a default value when printing help
-	GetUsageDefault() string
+	// Set sets the value
+	Set(interface{}) Value
+
+	// IsSet returns if the value has been Set
+	IsSet() bool
+
+	// UsageDefault shows a default value when printing help
+	// Used to show a long string describing the default behaviour
+	UsageDefault() string
+
+	// HelpDefault shows a default value when printing help
+	// Used to show the default value, if set
+	HelpDefault() string
+}
+
+func NewSimpleValueDefault(value interface{}) Value {
+	return &SimpleValue{
+		value: value,
+		set:   true,
+	}
+}
+
+func NewSimpleValueNotSet(usageDefault string) Value {
+	return &SimpleValue{
+		usageDefault: usageDefault,
+	}
 }
 
 type SimpleValue struct {
-	// Value is the value returned from the DefaultValue.Get function
-	Value interface{}
-
-	// UsageDefault is the value returned from the DefaultValue.GetUsageDefault function
-	UsageDefault string
+	value        interface{}
+	def          interface{}
+	set          bool
+	usageDefault string
 }
 
-func (sv SimpleValue) Get() interface{} {
-	return sv.Value
+func (sv SimpleValue) Get(nonInteractive, forceInteractive, isTerminal, includeDefault bool) (interface{}, error) {
+	if !sv.set {
+		if includeDefault && sv.def != nil {
+			return sv.def, nil
+		}
+		return nil, ErrNoValueSet
+	}
+	return sv.value, nil
 }
 
-func (sv SimpleValue) GetUsageDefault() string {
-	return sv.UsageDefault
+func (sv *SimpleValue) Set(v interface{}) Value {
+	sv.set = true
+	sv.value = v
+	return sv
+}
+
+func (sv SimpleValue) IsSet() bool {
+	return sv.set
+}
+
+func (sv SimpleValue) HelpDefault() string {
+	return fmt.Sprintf("%+v", sv.def)
+}
+
+func (sv SimpleValue) UsageDefault() string {
+	if sv.usageDefault != "" {
+		return sv.usageDefault
+	}
+	if sv.value != nil {
+		// TODO: should this be some variant of %v ?
+		return fmt.Sprintf("%s", sv.value)
+	}
+	return ""
 }
 
 type AskValue struct {
+	SimpleValue
 	Query  string
 	Cancel string
-	value  string
 }
 
-func (av *AskValue) Get() interface{} {
-	if av.value == "" {
-		fmt.Printf("%s (Enter 'c' to cancel): ", av.Query)
-		av.value = readLine(av.Cancel)
+func (av *AskValue) Get(nonInteractive, forceInteractive, isTerminal, includeDefault bool) (interface{}, error) {
+	// if running in non-interactive mode, or there is no terminal output
+	if nonInteractive || !isTerminal {
+		return av.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
 	}
-	return av.value
+	// if forcing interactive mode, or running in a terminal, and no value is set
+	if (forceInteractive || isTerminal) && !av.IsSet() {
+		// query the user for the value
+		fmt.Printf("%s (Enter 'c' to cancel): ", av.Query)
+		av.Set(readLine(av.Cancel))
+	}
+
+	return av.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
 }
 
-func (av AskValue) GetUsageDefault() string {
+func (av AskValue) UsageDefault() string {
 	return "Ask"
 }
 
@@ -59,33 +119,38 @@ type ListValueOption struct {
 }
 
 type ListValue struct {
+	SimpleValue
 	Query   string
 	Cancel  string
 	Options []ListValueOption
-	value   interface{}
 }
 
-func (lv *ListValue) Get() interface{} {
-	if lv.value != nil {
-		return lv.value
+func (lv *ListValue) Get(nonInteractive, forceInteractive, isTerminal, includeDefault bool) (interface{}, error) {
+	// if running in non-interactive mode, or there is no terminal output
+	if nonInteractive || !isTerminal {
+		return lv.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
 	}
-	fmt.Println(lv.Query)
-	fmt.Println(strings.Repeat("- ", 40))
-	for k, v := range lv.Options {
-		fmt.Printf("%d: %s (%v)\n", k+1, v.Option, v.Value)
+	// if forcing interactive mode, or running in a terminal, and no value is set
+	if (forceInteractive || isTerminal) && !lv.IsSet() {
+		fmt.Println(lv.Query)
+		fmt.Println(strings.Repeat("- ", 40))
+		for k, v := range lv.Options {
+			fmt.Printf("%d: %s (%v)\n", k+1, v.Option, v.Value)
+		}
+		fmt.Println(strings.Repeat("- ", 40))
+		fmt.Printf("Select the appropriate number [1-%d] then [enter] (press 'c' to cancel): ", len(lv.Options))
+		num, _ := strconv.Atoi(readLine(lv.Cancel))
+		if num <= 0 || num > len(lv.Options) {
+			fmt.Println("Invalid value")
+			os.Exit(1)
+		}
+		lv.Set(lv.Options[num-1].Value)
 	}
-	fmt.Println(strings.Repeat("- ", 40))
-	fmt.Printf("Select the appropriate number [1-%d] then [enter] (press 'c' to cancel): ", len(lv.Options))
-	num, _ := strconv.Atoi(readLine(lv.Cancel))
-	if num <= 0 || num > len(lv.Options) {
-		fmt.Println("Invalid value")
-		os.Exit(1)
-	}
-	lv.value = lv.Options[num-1].Value
-	return lv.value
+
+	return lv.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
 }
 
-func (lv ListValue) GetUsageDefault() string {
+func (lv ListValue) UsageDefault() string {
 	return "Ask"
 }
 

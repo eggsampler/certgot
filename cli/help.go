@@ -9,13 +9,25 @@ import (
 	"golang.org/x/term"
 )
 
-var termWidth = 80
+var (
+	termWidth  = 80
+	isTerminal = false
+)
+
+func TermWidth() int {
+	return termWidth
+}
+
+func IsTerminal() bool {
+	return isTerminal
+}
 
 func init() {
 	w, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err == nil {
 		termWidth = w
 	}
+	isTerminal = term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 type HelpTopic struct {
@@ -102,7 +114,7 @@ func printHelpSubCommand(app *App, sc *SubCommand) {
 		fmt.Println(log.Wrap(sc.Usage.ArgumentDescription, termWidth, "  "))
 		fmt.Println()
 	}
-	for _, argName := range sc.Usage.Flags {
+	for _, argName := range sc.Flags {
 		arg := app.Flag(argName)
 		if arg == nil {
 			// TODO: handle this more gracefully ?
@@ -198,9 +210,12 @@ func printFlagHelp(f *Flag) {
 
 	// desc includes the argument description and any default value, if set
 	desc := f.Usage.Description
-	if f.DefaultValue != nil && f.DefaultValue.GetUsageDefault() != "" {
-		// TODO: %s ? stringer something something
-		desc += fmt.Sprintf(" (default: %v)", f.DefaultValue.GetUsageDefault())
+	if f.Value != nil {
+		if f.Value.UsageDefault() != "" {
+			desc += fmt.Sprintf(" (default: %s)", f.Value.UsageDefault())
+		} else if f.Value.HelpDefault() != "" {
+			desc += fmt.Sprintf(" (default: %s)", f.Value.HelpDefault())
+		}
 	}
 
 	printHelpLine(args, desc)

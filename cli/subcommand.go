@@ -5,7 +5,10 @@ type SubCommand struct {
 	Default    bool
 	Run        func(app *App) error
 	HelpTopics []string
-	Usage      SubCommandUsage
+	// Flags shows the list of flag arguments for the specific subcommand
+	// Purely for help purposes
+	Flags []string
+	Usage SubCommandUsage
 }
 
 type SubCommandUsage struct {
@@ -18,8 +21,4 @@ type SubCommandUsage struct {
 
 	// ArgumentDescription is description text shown before the Flags list
 	ArgumentDescription string
-
-	// Flags shows the list of flag arguments for the specific subcommand
-	// Purely for help purposes
-	Flags []string
 }
