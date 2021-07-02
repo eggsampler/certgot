@@ -2,157 +2,192 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/eggsampler/certgot/log"
-	"golang.org/x/term"
 )
 
-var (
-	termWidth  = 80
-	isTerminal = false
-)
+type HelpCategories []*HelpCategory
 
-func TermWidth() int {
-	return termWidth
-}
-
-func IsTerminal() bool {
-	return isTerminal
-}
-
-func init() {
-	w, _, err := term.GetSize(int(os.Stdout.Fd()))
-	if err == nil {
-		termWidth = w
+func (hc HelpCategories) Get(s string) *HelpCategory {
+	for _, c := range hc {
+		if strings.EqualFold(c.Name, s) {
+			return c
+		}
 	}
-	isTerminal = term.IsTerminal(int(os.Stdout.Fd()))
+	return nil
 }
 
-type HelpTopic struct {
-	Topic           string
-	Name            string
-	Usage           string
-	Description     string
-	LongDescription string
-	ShowTopic       string
-	ShowFunc        func(*App, string) bool
+type HelpCategory struct {
+	// Category is the name given to this category, and this is what is used when looking up help
+	Category string
+
+	// Name is a longer name for the category, and is the first thing shown when printing help for the category
+	Name string
+
+	Description string
+
+	Usage string
+
+	UsageDescription string
+
+	// ShowFunc is used to determine whether this category should be shown to the user
+	ShowFunc func(ctx *Context, category string) bool
 }
 
-func ShowAlways(*App, string) bool       { return true }
-func ShowAnyTopic(_ *App, s string) bool { return s != "" }
-func ShowNoTopic(_ *App, s string) bool  { return s == "" }
-func ShowNotSubcommand(app *App, topic string) bool {
-	_, ok := app.subCommandMap[topic]
-	return !ok
-}
+func ShowAlways(*Context, string) bool              { return true }
+func ShowAnyCategory(_ *Context, s string) bool     { return len(s) > 0 }
+func ShowNoCategory(_ *Context, s string) bool      { return len(s) == 0 }
+func ShowNoCommand(ctx *Context, topic string) bool { return ctx.App.Commands.Get(topic) == nil }
 
-func DefaultHelpPrinter(app *App, specifiedTopic string) {
-	specifiedTopic = strings.ToLower(specifiedTopic)
-	if specifiedTopic == "all" {
-		specifiedTopic = ""
+func DefaultHelpPrinter(ctx *Context, requestedCategory string) {
+	requestedCategory = strings.ToLower(requestedCategory)
+	if requestedCategory == "all" {
+		requestedCategory = ""
 	}
 
-	// check topic exists
-	sc := app.subCommandMap[specifiedTopic]
-	ht, foundHt := getHelpTopic(app.helpTopics, specifiedTopic)
+	// check category exists
+	cmd := ctx.App.Commands.Get(requestedCategory)
+	category := ctx.App.Help.Get(requestedCategory)
 
-	if specifiedTopic != "" && sc == nil && !foundHt {
-		fmt.Printf("Unknown topic/command: %q\n", specifiedTopic)
+	if len(requestedCategory) > 0 && cmd == nil && category == nil {
+		fmt.Printf("Unknown topic/command: %q\n", requestedCategory)
 		allTopics := []string{"all"}
-		for _, t := range app.helpTopics {
-			allTopics = append(allTopics, t.Topic)
+		for _, t := range ctx.App.Help {
+			allTopics = append(allTopics, t.Category)
 		}
 		fmt.Printf("Valid topics: %s\n", strings.Join(allTopics, ", "))
 		var allCommands []string
-		for k, _ := range app.subCommandMap {
-			allCommands = append(allCommands, k)
+		for _, c := range ctx.App.Commands {
+			allCommands = append(allCommands, c.Name)
 		}
 		fmt.Printf("Valid commands: %s\n", strings.Join(allCommands, ", "))
 		return
 	}
 
-	// check if topic is a subcommand and print usage + description
-	if sc != nil {
+	// check if topic is a command and print usage + description
+	if cmd != nil {
 		fmt.Println("usage:")
 		fmt.Println()
 
-		if len(sc.Usage.LongUsage) > 0 {
-			fmt.Println("  " + app.Name + " " + sc.Name + " " + sc.Usage.LongUsage)
+		if len(cmd.Usage) > 0 {
+			fmt.Println("  " + ctx.App.Name + " " + cmd.Name + " " + cmd.Usage)
 		} else {
-			fmt.Println("  " + app.Name + " " + sc.Name + " [options] ...")
+			fmt.Println("  " + ctx.App.Name + " " + cmd.Name + " [options] ...")
 		}
 		fmt.Println()
 
-		if len(sc.Usage.UsageDescription) > 0 {
-			fmt.Println(sc.Usage.UsageDescription)
+		if len(cmd.UsageDescription) > 0 {
+			fmt.Println(cmd.UsageDescription)
 			fmt.Println()
 		}
 	}
 
-	// then and print the helptopic if found
-	if foundHt {
-		printHelpTopic(app, ht)
+	// then print the category if found
+	if category != nil {
+		printHelpCategory(ctx, category)
 	}
 
 	// print any non-specific help topics for the specified topic (if present)
-	for _, helpTopic := range app.helpTopics {
-		if helpTopic.ShowFunc != nil && helpTopic.ShowFunc(app, specifiedTopic) {
-			printHelpTopic(app, helpTopic)
+	for _, cat := range ctx.App.Help {
+		if cat.ShowFunc != nil && cat.ShowFunc(ctx, requestedCategory) {
+			printHelpCategory(ctx, cat)
 		}
 	}
 
-	if sc != nil {
-		printHelpSubCommand(app, sc)
+	if cmd != nil {
+		printHelpCommand(ctx, cmd)
 	}
 }
 
-func printHelpSubCommand(app *App, sc *SubCommand) {
-	fmt.Println(sc.Name + ":")
-	if sc.Usage.ArgumentDescription != "" {
-		fmt.Println(log.Wrap(sc.Usage.ArgumentDescription, termWidth, "  "))
-		fmt.Println()
+func printHelpCategory(ctx *Context, category *HelpCategory) {
+	if len(category.Name) > 0 {
+		fmt.Println(category.Name + ":")
 	}
-	for _, argName := range sc.Flags {
-		arg := app.Flag(argName)
-		if arg == nil {
-			// TODO: handle this more gracefully ?
-			panic(fmt.Sprintf("help subcommand %q has no argument %q", sc.Name, argName))
+
+	if len(category.Usage) > 0 {
+		fmt.Println(log.Wrap(category.Usage, termWidth, "  "))
+		fmt.Println()
+		if len(category.UsageDescription) > 0 {
+			fmt.Println(log.Wrap(category.UsageDescription, termWidth, ""))
 		}
-		printFlagHelp(arg)
 	}
-	fmt.Println()
-}
 
-func printHelpTopic(app *App, topic HelpTopic) {
-	if topic.Name != "" {
-		fmt.Println(topic.Name + ":")
+	if len(category.Description) > 0 {
+		fmt.Println(log.Wrap(category.Description, termWidth, "  "))
 	}
-	if topic.Description != "" {
-		fmt.Println(log.Wrap(topic.Description, termWidth, "  "))
-		fmt.Println()
-	}
-	if topic.LongDescription != "" {
-		fmt.Println(log.Wrap(topic.LongDescription, termWidth, ""))
-		//fmt.Println()
-	}
-	for _, cmd := range app.subCommandList {
-		if contains(cmd.HelpTopics, topic.Topic) {
+
+	for _, cmd := range ctx.App.Commands {
+		if contains(cmd.HelpCategories, category.Category) {
 			cmdName := cmd.Name
 			if cmd.Default {
 				cmdName = "(default) " + cmdName
 			}
-			printHelpLine(cmdName, cmd.Usage.UsageDescription)
+			printHelpLine(cmdName, cmd.UsageDescription)
 		}
 	}
 
-	for _, arg := range app.flagsList {
-		if contains(arg.HelpTopics, topic.Topic) {
-			printFlagHelp(arg)
+	for _, flg := range ctx.App.Flags {
+		if contains(flg.HelpCategories, category.Category) {
+			printFlagHelp(ctx, flg)
 		}
 	}
 	fmt.Println()
+}
+
+func printHelpCommand(ctx *Context, cmd *Command) {
+	fmt.Println(cmd.Name + ":")
+	if len(cmd.ArgumentDescription) > 0 {
+		fmt.Println(log.Wrap(cmd.ArgumentDescription, termWidth, "  "))
+		fmt.Println()
+	}
+	for _, flagName := range cmd.HelpFlags {
+		arg := ctx.App.Flags.Get(flagName)
+		if arg == nil {
+			// TODO: handle this more gracefully ?
+			panic(fmt.Sprintf("flag %q does not exist in app for command %q", flagName, cmd.Name))
+		}
+		printFlagHelp(ctx, arg)
+	}
+	fmt.Println()
+}
+
+func flagDashes(s string) string {
+	if len(s) == 1 {
+		return "-"
+	}
+	return "--"
+}
+
+func printFlagHelp(ctx *Context, f *Flag) {
+	argList := []string{
+		strings.TrimSpace(flagDashes(f.Name) + f.Name + " " + f.HelpValueName),
+	}
+	for _, n := range f.AltNames {
+		s := "-"
+		if len(n) > 1 {
+			s += "-"
+		}
+		s += n + " " + f.HelpValueName
+		argList = append(argList, strings.TrimSpace(s))
+	}
+	args := strings.Join(argList, ", ")
+	if strings.HasPrefix(args, "--") {
+		// nothing
+	} else {
+		args = " " + args
+	}
+
+	// desc includes the argument description and any default value, if set
+	desc := f.HelpDescription
+	if f.TakesValue && f.HelpDefault != nil {
+		defaultValueName := f.HelpDefault(ctx)
+		if len(defaultValueName) > 0 {
+			desc += fmt.Sprintf(" (default: %s)", defaultValueName)
+		}
+	}
+
+	printHelpLine(args, desc)
 }
 
 func printHelpLine(flagOrCmdName, desc string) {
@@ -187,54 +222,4 @@ func printHelpLine(flagOrCmdName, desc string) {
 	} else {
 		fmt.Println(combinedLine)
 	}
-}
-
-func printFlagHelp(f *Flag) {
-	argList := []string{
-		strings.TrimSpace(flagDashes(f.Name) + f.Name + " " + f.Usage.ArgName),
-	}
-	for _, n := range f.AltNames {
-		s := "-"
-		if len(n) > 1 {
-			s += "-"
-		}
-		s += n + " " + f.Usage.ArgName
-		argList = append(argList, strings.TrimSpace(s))
-	}
-	args := strings.Join(argList, ", ")
-	if strings.HasPrefix(args, "--") {
-		// nothing
-	} else {
-		args = " " + args
-	}
-
-	// desc includes the argument description and any default value, if set
-	desc := f.Usage.Description
-	if f.Value != nil {
-		if f.Value.UsageDefault() != "" {
-			desc += fmt.Sprintf(" (default: %s)", f.Value.UsageDefault())
-		} else if f.Value.HelpDefault() != "" {
-			desc += fmt.Sprintf(" (default: %s)", f.Value.HelpDefault())
-		}
-	}
-
-	printHelpLine(args, desc)
-}
-
-func getHelpTopic(topics []HelpTopic, s string) (HelpTopic, bool) {
-	for _, v := range topics {
-		if v.Topic == s {
-			return v, true
-		}
-	}
-	return HelpTopic{}, false
-}
-
-func contains(s []string, c string) bool {
-	for _, v := range s {
-		if v == c {
-			return true
-		}
-	}
-	return false
 }

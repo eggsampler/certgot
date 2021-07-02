@@ -1,151 +1,46 @@
 package cli
 
-import (
-	"errors"
-	"fmt"
-	"reflect"
-	"strings"
-)
-
-// ErrExitSuccess represents an error that can be returned from an argument Flag.PostParse func
-// if returned, program exits normally, error return 0
-// TODO: use this for other functions on Flag ?
-var ErrExitSuccess = errors.New("done")
-
-var ErrRequiresValue = errors.New("argument requires a value")
-
-// TODO: this error seems hacky, definitely rethink value
-var ErrNoValueProvided = errors.New("no value provided")
-
-// RequireValueIfSet can be used in Flag.PostParse to ensure an argument, if present, has a value
-// TODO: determine if this needs to be another property on Flag so that Flag.PostParse can still be used otherwise
-func RequireValueIfSet() func(f *Flag, sc *SubCommand, app *App) error {
-	return func(f *Flag, sc *SubCommand, app *App) error {
-		if f.TakesValue && f.isPresent && !f.Value.IsSet() {
-			return ErrRequiresValue
-		}
-		return nil
-	}
-}
-
+// Flag represents an argument that is prefixed by a single dash, or two dashes
 type Flag struct {
-	Name          string
-	AltNames      []string
-	TakesValue    bool
-	Value         Value // TODO: not expose this field somehow?
-	RepeatCount   int
-	TakesMultiple bool
+	// Name is the name of the flag, ie the string after the dash(es)
+	Name string
 
-	HelpTopics []string
-	Usage      ArgumentUsage
+	// AltNames is other names the flag can go by
+	// eg, can be used to add pluralised names, or short single character names
+	AltNames []string
 
-	PreParse  func(f *Flag, app *App) error
-	OnPresent func(f *Flag, argString string, repeatCount int, app *App) error
-	OnSet     func(f *Flag, argString string, newValue interface{}, app *App) error
-	PostParse func(f *Flag, sc *SubCommand, app *App) error
+	// AllowShortRepeat determines whether short flags (single letter, single dash) are allowed to repeat
+	// eg, -vvvvvvvv
+	AllowShortRepeat bool
 
-	isPresent           bool
-	isPresentInArgument bool
+	// AllowMultiple determines whether the flag is allow to be present multiple times in the arguments
+	// eg, --hello 1 --hello 2
+	AllowMultiple bool
+
+	// TakesValue determines whether the flag takes a value after the flag, or inline with the flag
+	// eg, after the flag: `--hello world`, or inline: `--hello=world`
+	TakesValue bool
+
+	// OnSetFunc is a function that can be run after all the arguments have been parsed, but before a Command is run
+	// eg, can be used to check some conditions based on the flag value
+	OnSetFunc func(f *Flag, ctx *Context) error
+
+	HelpDefault     func(ctx *Context) string
+	HelpValueName   string
+	HelpDescription string
+	HelpCategories  []string
+
+	flags  []string
+	values []string
 }
 
-type ArgumentUsage struct {
-	ArgName     string
-	Description string
+func (f Flag) String() string {
+	if len(f.values) == 0 {
+		return ""
+	}
+	return f.values[0]
 }
 
-func (f Flag) IsPresent() bool {
-	return f.isPresent
-}
-
-func (f Flag) IsPresentInArgument() bool {
-	return f.isPresentInArgument
-}
-
-func (f *Flag) Set(newValue interface{}) error {
-	if f.Value == nil {
-		return ErrNoValueProvided
-	}
-	// throw an error if this flag doesn't explicitly take a value
-	if !f.TakesValue {
-		return fmt.Errorf("argument does not take a value")
-	}
-	// set the value if the flag doesn't take multiples (multiples being: -d blah1 -d blah2, or -d blah1,blah2)
-	if !f.TakesMultiple {
-		f.Value.Set(newValue)
-		return nil
-	}
-	// the variable to store the value in for multiple types
-	var v interface{}
-	if !f.Value.IsSet() {
-		// first time value has been set (ie, for first instance of flag being parsed)
-		v = reflect.MakeSlice(reflect.SliceOf(reflect.TypeOf(newValue)), 0, 10).Interface()
-	} else {
-		// flag has already been set once, grab the underlying value to use to append more values to
-		var err error
-		v, err = f.Value.Get(true, false, false, false)
-		if err != nil {
-			return fmt.Errorf("error getting underlying value to append multiples: %w", err)
-		}
-	}
-	// if the new value is a string, and contains multiple comma-separated elements, extract each one
-	var valsToSet []reflect.Value
-	if strVal, ok := newValue.(string); ok && strings.Contains(strVal, ",") {
-		vals := strings.Split(strVal, ",")
-		for _, sv := range vals {
-			valsToSet = append(valsToSet, reflect.ValueOf(strings.TrimSpace(sv)))
-		}
-	} else {
-		// otherwise, just use the single value
-		valsToSet = []reflect.Value{reflect.ValueOf(newValue)}
-	}
-	// append parsed & extracted values to underlying value
-	reflect.ValueOf(&v).Elem().Set(reflect.Append(reflect.ValueOf(v), valsToSet...))
-	// and store to underlying value itself
-	f.Value.Set(v)
-	return nil
-}
-
-func (f Flag) String(nonInteractive, forceInteractive, isTerminal, includeDefault bool) (string, error) {
-	if f.Value == nil {
-		return "", ErrNoValueProvided
-	}
-	v, err := f.Value.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
-	if err != nil {
-		return "", err
-	}
-	s, ok := v.(string)
-	if !ok {
-		return "", fmt.Errorf("value type is not a string (got: %T)", v)
-	}
-	return s, nil
-}
-
-func (f Flag) StringSlice(nonInteractive, forceInteractive, isTerminal, includeDefault bool) ([]string, error) {
-	if f.Value == nil {
-		return nil, ErrNoValueProvided
-	}
-	v, err := f.Value.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
-	if err != nil {
-		return nil, err
-	}
-	s, ok := v.([]string)
-	if !ok {
-		return nil, fmt.Errorf("value type is not a string slice (got: %T)", v)
-	}
-	return s, nil
-}
-
-func (f Flag) Bool(nonInteractive, forceInteractive, isTerminal, includeDefault bool) (bool, error) {
-	if f.Value == nil {
-		return false, ErrNoValueProvided
-	}
-	v, err := f.Value.Get(nonInteractive, forceInteractive, isTerminal, includeDefault)
-	if err != nil {
-		return false, err
-	}
-	b, ok := v.(bool)
-	if !ok {
-		return false, fmt.Errorf("value type is not a bool (got: %T)", v)
-	}
-	return b, nil
+func (f Flag) Values() []string {
+	return f.values
 }

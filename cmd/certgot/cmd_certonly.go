@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/eggsampler/certgot/cli"
 )
 
@@ -11,21 +9,24 @@ const (
 )
 
 var (
-	cmdCertOnly = &cli.SubCommand{
-		Name:       CMD_CERTONLY,
-		Run:        commandCertOnly,
-		HelpTopics: []string{TOPIC_COMMON},
-		Flags:      []string{FLAG_NONINTERACTIVE},
+	cmdCertOnly = &cli.Command{
+		Name:           CMD_CERTONLY,
+		RunFunc:        commandCertOnly,
+		HelpCategories: []string{TOPIC_COMMON},
+		HelpFlags:      []string{FLAG_NONINTERACTIVE},
 	}
 )
 
-func commandCertOnly(app *cli.App) error {
-	val, err := flagAuthenticator.String(getFlagValues(true))
-	if err != nil {
-		return err
-	}
+func commandCertOnly(ctx *cli.Context) error {
+	/*
+		val, err := flagAuthenticator.String(getFlagValues(true))
+		if err != nil {
+			return err
+		}
 
-	fmt.Println("authenticator: ", val)
+		fmt.Println("authenticator: ", val)
+
+	*/
 
 	return nil
 }

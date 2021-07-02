@@ -1,4 +1,4 @@
-package cli
+package cli_old
 
 type SubCommand struct {
 	Name       string

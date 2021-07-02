@@ -9,17 +9,16 @@ const (
 )
 
 var (
-	cmdHelp = &cli.SubCommand{
-		Name: CMD_HELP,
-		Run:  commandHelp,
+	cmdHelp = &cli.Command{
+		Name:    CMD_HELP,
+		RunFunc: commandHelp,
 	}
 )
 
-func commandHelp(app *cli.App) error {
-	s := ""
-	if len(app.ExtraArguments) > 0 {
-		s = app.ExtraArguments[0]
+func commandHelp(ctx *cli.Context) error {
+	if len(ctx.ExtraArguments) > 0 {
+		return ctx.App.PrintHelp(ctx, ctx.ExtraArguments[0])
+	} else {
+		return ctx.App.PrintHelp(ctx, "")
 	}
-	app.PrintHelp(s)
-	return nil
 }

@@ -1,51 +1,47 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
-	"github.com/eggsampler/certgot/util"
-
 	"github.com/eggsampler/certgot/cli"
 	"github.com/eggsampler/certgot/log"
 )
 
-func doPreRun(app *cli.App) error {
+func doPreRun(ctx *cli.Context) error {
 	ll := log.Fields{}
-	for _, v := range app.Flags() {
-		if v.TakesValue && v.Value != nil && v.Value.IsSet() {
-			fv, err := v.Value.Get(getFlagValues(true))
-			if err != nil {
-				ll = ll.WithError(err)
-			} else {
-				ll = ll.WithField(v.Name, fv)
-			}
-		} else if v.IsPresent() {
-			ll = ll.WithField(v.Name, "-")
+	for _, v := range ctx.Flags {
+		if len(v.Values()) > 0 {
+			ll = ll.WithField(v.Name, v.Values())
+		} else {
+			ll = ll.WithField(v.Name, "(no value)")
 		}
 	}
 	ll.Debug("cli arguments")
-	if app.FoundSubCommand != nil {
-		log.WithField("subcommand", app.FoundSubCommand.Name).Debug("cli subcommand")
+	if ctx.Command != nil {
+		log.WithField("command", ctx.Command.Name).Debug("cli subcommand")
 	} else {
 		log.Debug("no cli subcommand")
 	}
 
-	dirs, err := getDirectories()
-	if err != nil {
-		return fmt.Errorf("Error fetching directories: %w", err)
-	}
+	/*
 
-	if err := setupDirectories(dirs); err != nil {
-		return fmt.Errorf("Error setting up directories: %v", err)
-	}
+		dirs, err := getDirectories()
+		if err != nil {
+			return fmt.Errorf("Error fetching directories: %w", err)
+		}
 
-	if err := setupLocks(dirs); err != nil {
-		return fmt.Errorf("Error setting up lock files: %v", err)
-	}
+		if err := setupDirectories(dirs); err != nil {
+			return fmt.Errorf("Error setting up directories: %v", err)
+		}
+
+		if err := setupLocks(dirs); err != nil {
+			return fmt.Errorf("Error setting up lock files: %v", err)
+		}
+
+	*/
 
 	return nil
 }
+
+/*
 
 func getDirectories() ([]string, error) {
 	cd, err := flagConfigDir.String(true, false, false, true)
@@ -96,3 +92,6 @@ func makeAndCheck(dir string, mode os.FileMode, uid int, strict bool) error {
 	}
 	return nil
 }
+
+
+*/

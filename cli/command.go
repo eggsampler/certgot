@@ -1,4 +1,4 @@
-package cli2
+package cli
 
 import "strings"
 
@@ -20,6 +20,8 @@ type Command struct {
 
 	// Default is whether this command is the default command
 	Default bool
+
+	RunFunc func(ctx *Context) error
 
 	// HelpCategories is a list of names that this command should be printed in when printing help for a category
 	HelpCategories []string

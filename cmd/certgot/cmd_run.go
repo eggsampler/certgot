@@ -5,13 +5,11 @@ import (
 )
 
 var (
-	cmdRun = &cli.SubCommand{
-		Name:       "run",
-		Default:    true,
-		HelpTopics: []string{TOPIC_COMMON},
-		Usage: cli.SubCommandUsage{
-			UsageDescription: "Obtain & install a certificate in your current webserver",
-		},
+	cmdRun = &cli.Command{
+		Name:             "run",
+		Default:          true,
+		HelpCategories:   []string{TOPIC_COMMON},
+		UsageDescription: "Obtain & install a certificate in your current webserver",
 		// TODO
 	}
 )
