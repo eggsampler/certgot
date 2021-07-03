@@ -8,8 +8,8 @@ import (
 func doPreRun(ctx *cli.Context) error {
 	ll := log.Fields{}
 	for _, v := range ctx.Flags {
-		if len(v.Values()) > 0 {
-			ll = ll.WithField(v.Name, v.Values())
+		if len(v.StringSlice()) > 0 {
+			ll = ll.WithField(v.Name, v.StringSlice())
 		} else {
 			ll = ll.WithField(v.Name, "(no value)")
 		}

@@ -1,5 +1,10 @@
 package cli
 
+import (
+	"fmt"
+	"strconv"
+)
+
 // Flag represents an argument that is prefixed by a single dash, or two dashes
 type Flag struct {
 	// Name is the name of the flag, ie the string after the dash(es)
@@ -34,6 +39,14 @@ type Flag struct {
 	values []string
 }
 
+func (f Flag) Int() int {
+	if len(f.values) == 0 {
+		return 0
+	}
+	i, _ := strconv.Atoi(f.values[0])
+	return i
+}
+
 func (f Flag) String() string {
 	if len(f.values) == 0 {
 		return ""
@@ -41,6 +54,17 @@ func (f Flag) String() string {
 	return f.values[0]
 }
 
-func (f Flag) Values() []string {
+func (f Flag) StringSlice() []string {
 	return f.values
+}
+
+func SetConfigValue(name string) func(f *Flag, ctx *Context) error {
+	return func(f *Flag, ctx *Context) error {
+		cfg := ctx.App.Configs.Get(name)
+		if cfg == nil {
+			return fmt.Errorf("no config %q for flag %q", name, f.Name)
+		}
+		cfg.set(f.values)
+		return nil
+	}
 }

@@ -8,7 +8,7 @@ var (
 	cmdRun = &cli.Command{
 		Name:             "run",
 		Default:          true,
-		HelpCategories:   []string{TOPIC_COMMON},
+		HelpCategories:   []string{CATEGORY_COMMON},
 		UsageDescription: "Obtain & install a certificate in your current webserver",
 		// TODO
 	}

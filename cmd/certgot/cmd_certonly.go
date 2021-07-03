@@ -12,7 +12,7 @@ var (
 	cmdCertOnly = &cli.Command{
 		Name:           CMD_CERTONLY,
 		RunFunc:        commandCertOnly,
-		HelpCategories: []string{TOPIC_COMMON},
+		HelpCategories: []string{CATEGORY_COMMON},
 		HelpFlags:      []string{FLAG_NONINTERACTIVE},
 	}
 )

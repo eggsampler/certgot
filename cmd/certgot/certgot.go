@@ -15,7 +15,7 @@ func main() {
 
 		Flags: cli.FlagList{
 			flagHelp,
-			flagConfig,
+			flagConfigFile,
 			flagWorkDir,
 			flagLogsDir,
 			flagConfigDir,
@@ -32,11 +32,20 @@ func main() {
 			cmdHelp,
 		},
 
+		Configs: cli.ConfigList{
+			cfgConfigFile,
+		},
+
 		Help: cli.HelpCategories{
 			categoryUsage,
 			categoryCommon,
 			categoryManageCerts,
 			categoryOptional,
+		},
+
+		PreRunFunc: func(ctx *cli.Context) error {
+			cfg := ctx.App.Configs.Get(CONFIG_FILE)
+			return ctx.App.LoadConfig(cfg.StringSlice(), !cfg.IsSet())
 		},
 	}
 

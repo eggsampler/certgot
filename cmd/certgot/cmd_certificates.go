@@ -12,7 +12,7 @@ var (
 	cmdCertificates = &cli.Command{
 		Name:                CMD_CERTIFICATES,
 		RunFunc:             commandCertificates,
-		HelpCategories:      []string{TOPIC_MANAGE_CERTIFICATES},
+		HelpCategories:      []string{CATEGORY_MANAGE_CERTIFICATES},
 		HelpFlags:           []string{FLAG_DOMAIN, FLAG_CERT_NAME},
 		UsageDescription:    "Display information about certificates you have from Certbot",
 		ArgumentDescription: "List certificates managed by Certbot",

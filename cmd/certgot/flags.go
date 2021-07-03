@@ -34,35 +34,36 @@ var (
 		Name:            FLAG_HELP,
 		AltNames:        []string{FLAG_HELP_SHORT},
 		TakesValue:      true,
-		HelpCategories:  []string{TOPIC_OPTIONAL},
+		HelpCategories:  []string{CATEGORY_OPTIONAL},
 		HelpDescription: "show this help message and exit",
 		OnSetFunc: func(f *cli.Flag, ctx *cli.Context) error {
 			_ = ctx.App.PrintHelp(ctx, f.String())
 			return cli.ErrExitSuccess
 		},
 	}
-	flagConfig = &cli.Flag{
+	flagConfigFile = &cli.Flag{
 		Name:            FLAG_CONFIG,
 		AltNames:        []string{FLAG_CONFIG_SHORT},
 		TakesValue:      true,
-		HelpCategories:  []string{TOPIC_OPTIONAL},
+		HelpCategories:  []string{CATEGORY_OPTIONAL},
 		HelpValueName:   "CONFIG_FILE",
 		HelpDescription: "path to config file",
+		OnSetFunc:       cli.SetConfigValue(CONFIG_FILE),
 	}
 	flagWorkDir = &cli.Flag{
 		Name:           FLAG_WORK_DIR,
 		TakesValue:     true,
-		HelpCategories: []string{TOPIC_OPTIONAL},
+		HelpCategories: []string{CATEGORY_OPTIONAL},
 	}
 	flagLogsDir = &cli.Flag{
 		Name:           FLAG_LOGS_DIR,
 		TakesValue:     true,
-		HelpCategories: []string{TOPIC_OPTIONAL},
+		HelpCategories: []string{CATEGORY_OPTIONAL},
 	}
 	flagConfigDir = &cli.Flag{
 		Name:           FLAG_CONFIG_DIR,
 		TakesValue:     true,
-		HelpCategories: []string{TOPIC_OPTIONAL},
+		HelpCategories: []string{CATEGORY_OPTIONAL},
 	}
 
 	flagDomains = &cli.Flag{

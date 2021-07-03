@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"os"
 )
 
 type App struct {
@@ -85,4 +86,8 @@ func (app *App) PrintHelp(ctx *Context, category string) error {
 	DefaultHelpPrinter(ctx, category)
 
 	return nil
+}
+
+func (app *App) LoadConfig(files []string, skip bool) error {
+	return loadConfig(files, skip, app.Configs, os.DirFS(""))
 }
