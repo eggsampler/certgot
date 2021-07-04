@@ -90,7 +90,17 @@ func Test_parseArguments(t *testing.T) {
 			args: args{
 				argsToParse: []string{"bin", "-d"},
 				ctx:         &Context{},
-				fl:          FlagList{&Flag{Name: "d", TakesValue: true}},
+				fl:          FlagList{&Flag{Name: "d", TakesValue: true, RequiresValue: true}},
+			},
+			wantErr: true,
+			errStr:  "requires value",
+		},
+		{
+			name: "requires value 2",
+			args: args{
+				argsToParse: []string{"bin", "-d", "-d"},
+				ctx:         &Context{},
+				fl:          FlagList{&Flag{Name: "d", TakesValue: true, RequiresValue: true}},
 			},
 			wantErr: true,
 			errStr:  "requires value",
@@ -117,11 +127,11 @@ func Test_parseArguments(t *testing.T) {
 				if f == nil {
 					return errors.New("ctx didn't include flag")
 				}
-				if len(f.values) == 0 {
+				if len(f.valuesRaw) == 0 {
 					return errors.New("flag didn't include any values")
 				}
-				if f.values[0] != "1" {
-					return fmt.Errorf("unexpected flag value: %+v", f.values)
+				if f.valuesRaw[0] != "1" {
+					return fmt.Errorf("unexpected flag value: %+v", f.valuesRaw)
 				}
 				return nil
 			},
@@ -138,11 +148,11 @@ func Test_parseArguments(t *testing.T) {
 				if f == nil {
 					return errors.New("ctx didn't include flag")
 				}
-				if len(f.values) == 0 {
+				if len(f.valuesRaw) == 0 {
 					return errors.New("flag didn't include any values")
 				}
-				if f.values[0] != "1" {
-					return fmt.Errorf("unexpected flag value: %+v", f.values)
+				if f.valuesRaw[0] != "1" {
+					return fmt.Errorf("unexpected flag value: %+v", f.valuesRaw)
 				}
 				return nil
 			},
@@ -216,7 +226,7 @@ func Test_extractFlag(t *testing.T) {
 		{
 			name: "ok short",
 			arg:  "-a",
-			want: []string{"-a", "a", ""},
+			want: []string{"-a", "a", "", ""},
 		},
 		{
 			name: "bad short",
@@ -231,6 +241,11 @@ func Test_extractFlag(t *testing.T) {
 			arg:  "-ab=a",
 		},
 		{
+			name: "ok short value",
+			arg:  "-a=b",
+			want: []string{"-a=b", "a", "=", "b"},
+		},
+		{
 			name: "bad long",
 			arg:  "---",
 		},
@@ -241,7 +256,7 @@ func Test_extractFlag(t *testing.T) {
 		{
 			name: "ok long value",
 			arg:  "--abc=asd",
-			want: []string{"--abc=asd", "abc", "asd"},
+			want: []string{"--abc=asd", "abc", "=", "asd"},
 		},
 	}
 	for _, tt := range tests {

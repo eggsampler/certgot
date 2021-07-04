@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+type SourceName string
+
+const (
+	SourceFile SourceName = "file"
+	SourceFlag SourceName = "flag"
+)
+
 type ConfigList []*Config
 
 func (cl ConfigList) Get(name string) *Config {
@@ -19,11 +26,16 @@ func (cl ConfigList) Get(name string) *Config {
 	return nil
 }
 
+type ConfigSource struct {
+	Source SourceName
+	Extra  string
+}
+
 type Config struct {
 	Name        string
 	Default     []string
 	HelpDefault string
-	OnSet       func(*Config, []string) error
+	OnSet       func(cfg *Config, values []string, source ConfigSource) error
 
 	value []string
 	isSet bool
@@ -33,9 +45,9 @@ func (c Config) IsSet() bool {
 	return c.isSet
 }
 
-func (c *Config) set(v []string) error {
+func (c *Config) set(v []string, src ConfigSource) error {
 	if c.OnSet != nil {
-		err := c.OnSet(c, v)
+		err := c.OnSet(c, v, src)
 		if err != nil {
 			return err
 		}

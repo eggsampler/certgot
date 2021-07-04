@@ -65,6 +65,13 @@ func DefaultHelpPrinter(ctx *Context, requestedCategory string) {
 		return
 	}
 
+	if requestedCategory == "" {
+		fmt.Println("showing help for 'all'")
+	} else {
+		fmt.Printf("showing help for '%s'\n", requestedCategory)
+	}
+	fmt.Println()
+
 	// check if topic is a command and print usage + description
 	if cmd != nil {
 		fmt.Println("usage:")
@@ -180,8 +187,12 @@ func printFlagHelp(ctx *Context, f *Flag) {
 
 	// desc includes the argument description and any default value, if set
 	desc := f.HelpDescription
-	if f.TakesValue && f.HelpDefault != nil {
-		defaultValueName := f.HelpDefault(ctx)
+	if f.HelpDefault != nil {
+		defaultValueName, err := f.HelpDefault(ctx)
+		if err != nil {
+			// TODO: return this error?
+			log.WithField("flag", f.Name).WithError(err).Error("fetching help default string")
+		}
 		if len(defaultValueName) > 0 {
 			desc += fmt.Sprintf(" (default: %s)", defaultValueName)
 		}

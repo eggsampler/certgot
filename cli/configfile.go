@@ -66,6 +66,7 @@ func setConfig(entries map[string][]configFileEntry, cl ConfigList) error {
 			return fmt.Errorf("unknown config %q on line %d in config file: %s", name, entryList[0].line, entryList[0].fileName)
 		}
 
+		files := map[string][]int{}
 		var values []string
 
 		for _, v := range entryList {
@@ -76,14 +77,27 @@ func setConfig(entries map[string][]configFileEntry, cl ConfigList) error {
 			ll.Trace("config present")
 
 			values = append(values, v.value)
+			files[v.fileName] = append(files[v.fileName], v.line)
 		}
 
 		log.WithField("config", name).WithField("value", entryList).Trace("setting value")
-		if err := cfg.set(values); err != nil {
+		if err := cfg.set(values, ConfigSource{
+			Source: SourceFile,
+			Extra:  joinFileSource(files),
+		}); err != nil {
 			return fmt.Errorf("error setting config %q to value %q: %v", name, values, err)
 		}
 	}
 	return nil
+}
+
+func joinFileSource(files map[string][]int) string {
+	var fileLines []string
+	for k, v := range files {
+		lines := fmt.Sprintf("%+v", v)
+		fileLines = append(fileLines, k+":"+lines)
+	}
+	return strings.Join(fileLines, ",")
 }
 
 // parsePath takes a path string which might begin with a ~ and, if it does, attempts to replace the tilde
@@ -132,7 +146,7 @@ func loadConfig(configFiles []string, skipOpenErrors bool, cl ConfigList, sys fs
 		if err != nil {
 			// skip file errors if config file isn't explicitly set
 			if skipOpenErrors {
-				ll.WithError(err).Debug("reading config file")
+				ll.WithError(err).Debug("error reading config file")
 				continue
 			}
 			return fmt.Errorf("error opening config file %q: %w", fileName, err)
@@ -143,7 +157,11 @@ func loadConfig(configFiles []string, skipOpenErrors bool, cl ConfigList, sys fs
 		} else {
 			for k, v := range c {
 				entries[k] = append(entries[k], v...)
+				for _, vv := range v {
+					ll.WithFields("config", vv.key, "value", vv.value, "line", vv.line).Trace("config entry")
+				}
 			}
+			ll.WithField("count", len(c)).Trace("loaded config entries")
 		}
 		_ = f.Close()
 	}

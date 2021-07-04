@@ -16,17 +16,27 @@ func parseArguments(argsToParse []string, ctx *Context, validFlags FlagList, val
 		return nil
 	}
 
-	// flg represents the current or previously parsed flag, if no value has been set on it
-	// this is used to hold a flag if it takes a value, so the next argument can be applied as the value
-	var lastFlag *Flag
+	// lastFlagExpectingValue represents the previously parsed flag, if it takes a value but no value has been set on it
+	// this is used to hold a flag if it takes a value, so the next argument can be applied as the value to that flag
+	var lastFlagExpectingValue *Flag
 
-	// parse all of the argumentes, excluding
+	// parse all of the arguments, excluding
 	for _, arg := range argsToParse[1:] {
 
 		// first check if it's a flag
 		if strings.HasPrefix(arg, "-") {
 
-			// grab the flag using the regexes
+			// if the previous flag expected a value, but we're now parsing a flag
+			if lastFlagExpectingValue != nil && lastFlagExpectingValue.RequiresValue {
+				lastValue := lastFlagExpectingValue.valuesInfo[len(lastFlagExpectingValue.valuesInfo)-1]
+				return fmt.Errorf("flag %q (%s) requires value, but none provided before next flag %q",
+					lastValue.RawFlag, lastValue.FlagName, arg)
+			}
+
+			// unset the last flag expecting a value, as we're past that flag and onto the current flag
+			lastFlagExpectingValue = nil
+
+			// grab the flag parts using the regexes
 			flagMatch := extractFlag(arg)
 			if len(flagMatch) < 2 {
 				return fmt.Errorf("invalid flag: %s", arg)
@@ -60,34 +70,55 @@ func parseArguments(argsToParse []string, ctx *Context, validFlags FlagList, val
 				return fmt.Errorf("flag doesn't allow multiples: %s", flagName)
 			}
 
-			// add the flag to the context
-			ctx.Flags = append(ctx.Flags, currentFlag)
+			// add the flag to the context, using FlagList.Put to make sure it's not duplicated
+			ctx.Flags.Put(currentFlag)
 
-			// add the original flag name
-			currentFlag.flags = append(currentFlag.flags, flagMatch[1])
+			hasValue := false
+			var value string
 
-			// if the argument is i flag with an inline value, set the flag's value now
-			if strings.Contains(arg, "=") {
+			// if the argument is a flag with an inline value, set the flag's value now
+			if flagMatch[2] == "=" {
 
 				// if the flag is not explicitly set to take a value, return an error
 				if !currentFlag.TakesValue {
 					return fmt.Errorf("flag doesn't take a value: %s", flagName)
 				}
-				currentFlag.values = append(currentFlag.values, flagMatch[2])
+
+				// the flag has a value
+				hasValue = true
+				value = flagMatch[3]
+
+				// add the current value to the list of all values
+				currentFlag.valuesRaw = append(currentFlag.valuesRaw, flagMatch[3])
 
 			} else if currentFlag.TakesValue {
-				// if the flag takes a value, set the last flag a as the current flag
-				// so the next argument can be set as the flag's value
-				lastFlag = currentFlag
+				// set the variable so we can put an arg on it
+				lastFlagExpectingValue = currentFlag
 			}
 
-		} else if lastFlag != nil {
-			// if the last argument was a flag that takes a value,
-			// set the current argument as that flag's value
-			lastFlag.values = append(lastFlag.values, arg)
+			// and the information about the value
+			currentFlag.valuesInfo = append(currentFlag.valuesInfo, FlagValue{
+				FlagName: flagName,
+				RawFlag:  flagMatch[1],
+				HasValue: hasValue,
+				Value:    value,
+			})
+
+		} else if lastFlagExpectingValue != nil {
+			// if the last argument was a flag that is expecting a value
+
+			// set the value
+			lastFlagExpectingValue.valuesRaw = append(lastFlagExpectingValue.valuesRaw, arg)
+
+			// and include the value in the flag value information list
+			endIdx := len(lastFlagExpectingValue.valuesInfo) - 1
+			lastValue := lastFlagExpectingValue.valuesInfo[endIdx]
+			lastValue.HasValue = true
+			lastValue.Value = arg
+			lastFlagExpectingValue.valuesInfo[endIdx] = lastValue
 
 			// and reset the last flag to nil so we don't keep setting the value
-			lastFlag = nil
+			lastFlagExpectingValue = nil
 
 		} else if ctx.Command != nil {
 			// anything after a command has been found is added to the extra arguments
@@ -104,18 +135,19 @@ func parseArguments(argsToParse []string, ctx *Context, validFlags FlagList, val
 		}
 	}
 
-	// if the last flag is still set and it takes a value (it should, this is checked before lastFlag is set)
-	// show an error because there are no arguments left to set the value
-	if lastFlag != nil && lastFlag.TakesValue {
-		return fmt.Errorf("flag requires value: %s", lastFlag.Name)
+	// if the previous flag expected a value, but there's no more arguments left
+	if lastFlagExpectingValue != nil && lastFlagExpectingValue.RequiresValue {
+		lastValue := lastFlagExpectingValue.valuesInfo[len(lastFlagExpectingValue.valuesInfo)-1]
+		return fmt.Errorf("flag %q (%s) requires value, but more arguments were provided",
+			lastValue.RawFlag, lastValue.FlagName)
 	}
 
 	return nil
 }
 
 var (
-	regFlagLong  = regexp.MustCompile(`^--([[:alnum:]]+(?:-[[:alnum:]]+)*)(?:=(.+))?$`)
-	regFlagShort = regexp.MustCompile("^-(a+|b+|c+|d+|e+|f+|g+|h+|i+|j+|k+|l+|m+|n+|o+|p+|q+|r+|s+|t+|u+|v+|w+|x+|y+|z+)(?:=(.+))?$")
+	regFlagLong  = regexp.MustCompile(`^--([[:alnum:]]+(?:-[[:alnum:]]+)*)(?:(=)(.+))?$`)
+	regFlagShort = regexp.MustCompile("^-(a+|b+|c+|d+|e+|f+|g+|h+|i+|j+|k+|l+|m+|n+|o+|p+|q+|r+|s+|t+|u+|v+|w+|x+|y+|z+)(?:(=)(.+))?$")
 )
 
 // extractFlag takes a given string which is already determined to start with a single dash character '-'

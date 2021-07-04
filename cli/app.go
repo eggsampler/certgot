@@ -5,21 +5,36 @@ import (
 	"os"
 )
 
+// App is the main entry point for any cli application, and should be defined as a variable
 type App struct {
 	// Name is the name of the app
 	// Mostly just used for help purposes
 	Name string
 
-	Flags    FlagList
+	// Flags is a list of flags which can be provided to the application
+	Flags FlagList
+
+	// Commands is a list of commands which can be run by the application
 	Commands CommandList
-	Configs  ConfigList
 
-	PreRunFunc  func(*Context) error
-	PostRunFunc func(*Context) error
+	// Configs is a list of configurations to be set or used by the application
+	Configs ConfigList
 
-	Help            HelpCategories
+	// PreRunFunc is run before the Command.RunFunc
+	// Can be used to do things like load config files, set up any common state, etc
+	PreRunFunc func(*Context) error
+
+	// PostRunFunc is run after the Command.RunFunc with the error, if any, returned
+	PostRunFunc func(*Context, error) error
+
+	// Help is a list of categories used when displaying help
+	Help HelpCategories
+
+	// HelpPrinterFunc can be used to override the default help printer
+	// Could maybe be used to print help in json, or totally customise the help display, or even display no help at all
 	HelpPrinterFunc func(ctx *Context, category string) error
 
+	// RecoverFunc can be used to catch any panics during any point of the App.Run function
 	RecoverFunc func(*App, interface{}) error
 }
 
@@ -34,6 +49,7 @@ func (app *App) Run(args []string) (err error) {
 		}()
 	}
 
+	// setup initial context
 	ctx := Context{
 		App:          app,
 		RawArguments: args,
@@ -46,8 +62,8 @@ func (app *App) Run(args []string) (err error) {
 
 	// execute any flag functions
 	for _, f := range ctx.Flags {
-		if err := f.OnSetFunc(f, &ctx); err != nil {
-			return fmt.Errorf("error on flag %s OnSetFunc: %w", f.Name, err)
+		if err := f.PostParseFunc(f, &ctx); err != nil {
+			return fmt.Errorf("error on flag %s PostParseFunc: %w", f.Name, err)
 		}
 	}
 
@@ -60,16 +76,18 @@ func (app *App) Run(args []string) (err error) {
 
 	// run the command
 	if ctx.Command != nil {
-		if err := ctx.Command.RunFunc(&ctx); err != nil {
-			return fmt.Errorf("error in command %q RunFunc: %w", ctx.Command.Name, err)
-		}
+		err = ctx.Command.RunFunc(&ctx)
 	}
 
 	// run the app post run
 	if app.PostRunFunc != nil {
-		if err := app.PostRunFunc(&ctx); err != nil {
-			return fmt.Errorf("error in app PostRunFunc: %w", err)
+		if postErr := app.PostRunFunc(&ctx, err); err != nil {
+			return fmt.Errorf("error in app PostRunFunc: %w", postErr)
 		}
+	}
+
+	if err != nil {
+		return fmt.Errorf("error in command %q RunFunc: %w", ctx.Command.Name, err)
 	}
 
 	// TODO: error if command is nil?
@@ -78,7 +96,7 @@ func (app *App) Run(args []string) (err error) {
 	return nil
 }
 
-func (app *App) PrintHelp(ctx *Context, category string) error {
+func (app App) PrintHelp(ctx *Context, category string) error {
 	if app.HelpPrinterFunc != nil {
 		return app.HelpPrinterFunc(ctx, category)
 	}

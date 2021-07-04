@@ -132,7 +132,7 @@ func Test_setConfig(t *testing.T) {
 			name: "set config fail",
 			args: args{
 				entries: map[string][]configFileEntry{"hello": {{key: "hello", hasValue: true, value: "world"}}},
-				cl: ConfigList{&Config{Name: "hello", OnSet: func(*Config, []string) error {
+				cl: ConfigList{&Config{Name: "hello", OnSet: func(*Config, []string, ConfigSource) error {
 					return errors.New("blah")
 				}}},
 			},

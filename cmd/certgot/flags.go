@@ -36,7 +36,7 @@ var (
 		TakesValue:      true,
 		HelpCategories:  []string{CATEGORY_OPTIONAL},
 		HelpDescription: "show this help message and exit",
-		OnSetFunc: func(f *cli.Flag, ctx *cli.Context) error {
+		PostParseFunc: func(f *cli.Flag, ctx *cli.Context) error {
 			_ = ctx.App.PrintHelp(ctx, f.String())
 			return cli.ErrExitSuccess
 		},
@@ -45,24 +45,29 @@ var (
 		Name:            FLAG_CONFIG,
 		AltNames:        []string{FLAG_CONFIG_SHORT},
 		TakesValue:      true,
+		RequiresValue:   true,
+		HelpDefault:     cli.GetConfigDefault(CONFIG_FILE),
 		HelpCategories:  []string{CATEGORY_OPTIONAL},
 		HelpValueName:   "CONFIG_FILE",
 		HelpDescription: "path to config file",
-		OnSetFunc:       cli.SetConfigValue(CONFIG_FILE),
+		PostParseFunc:   cli.SetConfigValue(CONFIG_FILE),
 	}
 	flagWorkDir = &cli.Flag{
 		Name:           FLAG_WORK_DIR,
 		TakesValue:     true,
+		RequiresValue:  true,
 		HelpCategories: []string{CATEGORY_OPTIONAL},
 	}
 	flagLogsDir = &cli.Flag{
 		Name:           FLAG_LOGS_DIR,
 		TakesValue:     true,
+		RequiresValue:  true,
 		HelpCategories: []string{CATEGORY_OPTIONAL},
 	}
 	flagConfigDir = &cli.Flag{
 		Name:           FLAG_CONFIG_DIR,
 		TakesValue:     true,
+		RequiresValue:  true,
 		HelpCategories: []string{CATEGORY_OPTIONAL},
 	}
 
@@ -70,6 +75,7 @@ var (
 		Name:            FLAG_DOMAIN,
 		AltNames:        []string{FLAG_DOMAINS, FLAG_DOMAIN_SHORT},
 		TakesValue:      true,
+		RequiresValue:   true,
 		AllowMultiple:   true,
 		HelpCategories:  []string{CMD_CERTIFICATES},
 		HelpValueName:   "DOMAIN",
@@ -78,9 +84,10 @@ var (
 	flagCertName = &cli.Flag{
 		Name:           FLAG_CERT_NAME,
 		TakesValue:     true,
+		RequiresValue:  true,
 		HelpCategories: []string{CMD_CERTIFICATES},
-		HelpDefault: func(*cli.Context) string {
-			return "the first provided domain or the name of an existing certificate on your system for the same domains"
+		HelpDefault: func(*cli.Context) (string, error) {
+			return "the first provided domain or the name of an existing certificate on your system for the same domains", nil
 		},
 		HelpValueName:   "CERTNAME",
 		HelpDescription: "Certificate name to apply. This name is used by Certbot for housekeeping and in file paths; it doesn't affect the content of the certificate itself. To see certificate names, run 'certbot certificates'. When creating a new certificate, specifies the new certificate's name.",
