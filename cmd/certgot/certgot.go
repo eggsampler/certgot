@@ -9,6 +9,10 @@ import (
 	"github.com/eggsampler/certgot/log"
 )
 
+func init() {
+	log.SetLevel(log.MinLevel)
+}
+
 func main() {
 	app := &cli.App{
 		Name: "certgot",
@@ -53,6 +57,8 @@ func main() {
 	if !isdelve.Enabled {
 		app.RecoverFunc = doRecover
 	}
+
+	log.WithField("args", os.Args).Debug("running")
 
 	err := app.Run(os.Args)
 	if err != nil {

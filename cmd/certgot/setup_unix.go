@@ -1,3 +1,5 @@
+// +build unix darwin
+
 package main
 
 import "path/filepath"

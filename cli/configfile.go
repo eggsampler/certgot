@@ -130,9 +130,9 @@ func loadConfig(configFiles []string, skipOpenErrors bool, cl ConfigList, sys fs
 		// TODO: why does io/fs.ValidPath return false for paths starting/ending with a slash???
 		f, err := sys.Open(strings.Trim(fileName, string(os.PathSeparator)))
 		if err != nil {
-			ll.WithError(err).Error("reading config file")
 			// skip file errors if config file isn't explicitly set
 			if skipOpenErrors {
+				ll.WithError(err).Debug("reading config file")
 				continue
 			}
 			return fmt.Errorf("error opening config file %q: %w", fileName, err)

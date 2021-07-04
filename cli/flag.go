@@ -3,7 +3,25 @@ package cli
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
+
+type FlagList []*Flag
+
+func (fl FlagList) Get(name string) *Flag {
+	for _, f := range fl {
+		if strings.EqualFold(name, f.Name) {
+			return f
+		}
+		for _, an := range f.AltNames {
+			if strings.EqualFold(an, f.Name) {
+				return f
+			}
+		}
+	}
+
+	return nil
+}
 
 // Flag represents an argument that is prefixed by a single dash, or two dashes
 type Flag struct {
