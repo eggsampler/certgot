@@ -26,30 +26,34 @@ func (f Fields) WithField(key, value interface{}) Fields {
 	return append(f, toField(key, value))
 }
 
-func toField(key interface{}, val interface{}) logField {
-	kk, ok := key.(string)
-	if !ok {
-		ks, ok := key.(fmt.Stringer)
-		if ok {
-			kk = ks.String()
-		} else {
-			kk = fmt.Sprintf("%v", key)
-		}
-	}
+func toString(val interface{}, format string) string {
 	switch v := val.(type) {
 	case string:
-		return stringLogField{kk, v}
+		return v
+	case fmt.Stringer:
+		return v.String()
 	default:
-		lvl := int(GetLevel())
-		switch {
-		case lvl <= 0:
-			return stringLogField{kk, fmt.Sprintf("%#v", v)}
-		case lvl == 1:
-			return stringLogField{kk, fmt.Sprintf("%+v", v)}
-		default: // case lvl >= 2:
-			return stringLogField{kk, fmt.Sprintf("%v", v)}
-		}
+		return fmt.Sprintf(format, v)
 	}
+}
+
+func toField(key interface{}, val interface{}) logField {
+	var sVal string
+
+	// TODO: is there any value in this changing?
+	// because it changes based on the current log level
+	// not the final .Debug vs .Trace vs .Info level
+	lvl := int(GetLevel())
+	switch {
+	case lvl <= 0:
+		sVal = toString(val, "%#v")
+	case lvl == 1:
+		sVal = toString(val, "%+v")
+	default: // case lvl >= 2:
+		sVal = toString(val, "%v")
+	}
+
+	return stringLogField{toString(key, "%v"), sVal}
 }
 
 func (f Fields) WithFields(fields ...interface{}) Fields {

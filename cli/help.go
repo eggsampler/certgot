@@ -23,6 +23,7 @@ type HelpCategory struct {
 	Category string
 
 	// Name is a longer name for the category, and is the first thing shown when printing help for the category
+	// If not present, will just print the category
 	Name string
 
 	Description string
@@ -110,6 +111,8 @@ func DefaultHelpPrinter(ctx *Context, requestedCategory string) {
 func printHelpCategory(ctx *Context, category *HelpCategory) {
 	if len(category.Name) > 0 {
 		fmt.Println(category.Name + ":")
+	} else {
+		fmt.Println(category.Category + ":")
 	}
 
 	if len(category.Usage) > 0 {
@@ -201,12 +204,14 @@ func printFlagHelp(ctx *Context, f *Flag) {
 	printHelpLine(args, desc)
 }
 
+const columnLength = 24
+
 func printHelpLine(flagOrCmdName, desc string) {
 	flagOrCmdName = "  " + flagOrCmdName
-	descPrefix := strings.Repeat(" ", 20)
+	descPrefix := strings.Repeat(" ", columnLength)
 
-	// if the length of the flag/command is greater than 20, put the description on the next line
-	if len(flagOrCmdName) > 20 {
+	// if the length of the flag/command is greater than the columnLength, put the description on the next line
+	if len(flagOrCmdName) > columnLength {
 		// print the argument/cmd (ie, --hello THING)
 		fmt.Println(flagOrCmdName)
 
@@ -223,7 +228,7 @@ func printHelpLine(flagOrCmdName, desc string) {
 		return
 	}
 
-	combinedLine := flagOrCmdName + strings.Repeat(" ", 20-len(flagOrCmdName)) + desc
+	combinedLine := flagOrCmdName + strings.Repeat(" ", columnLength-len(flagOrCmdName)) + desc
 	if len(combinedLine) > termWidth {
 		lines := log.WrapSlice(combinedLine, termWidth, "")
 		fmt.Println(lines[0])

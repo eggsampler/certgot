@@ -26,11 +26,11 @@ type Command struct {
 	// HelpCategories is a list of names that this command should be printed in when printing help for a category
 	HelpCategories []string
 
-	// HelpFlags shows the list of flag arguments for the specific subcommand
+	// HelpFlags shows the list of flag arguments for the specific command
 	// Purely for help purposes
 	HelpFlags []string
 
-	// Usage is used to show custom usage args/params after `certgot subcommand XXXX`, where XXXX is Usage
+	// Usage is used to show custom usage args/params after `certgot command XXXX`, where XXXX is Usage
 	// If not supplied, by default shows `[options] ...`
 	Usage string
 

@@ -5,12 +5,17 @@ import (
 	"github.com/eggsampler/certgot/log"
 )
 
-func doPostRun(_ *cli.App, r interface{}) {
-	cleanupLocks()
+func doPostRun(ctx *cli.Context, err error) error {
+	errs := cleanupLocks()
+	for _, v := range errs {
+		log.WithError(v).Debug("cleaning up locks")
+	}
 
-	if r != nil {
-		log.WithField("error", r).Debug("post run")
+	if err != nil {
+		log.WithField("error", err).Debug("post run")
 	} else {
 		log.Debug("post run")
 	}
+
+	return nil
 }

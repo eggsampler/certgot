@@ -46,29 +46,41 @@ var (
 		AltNames:        []string{FLAG_CONFIG_SHORT},
 		TakesValue:      true,
 		RequiresValue:   true,
+		PostParseFunc:   cli.SetConfigValue(CONFIG_FILE),
 		HelpDefault:     cli.GetConfigDefault(CONFIG_FILE),
-		HelpCategories:  []string{CATEGORY_OPTIONAL},
 		HelpValueName:   "CONFIG_FILE",
 		HelpDescription: "path to config file",
-		PostParseFunc:   cli.SetConfigValue(CONFIG_FILE),
+		HelpCategories:  []string{CATEGORY_OPTIONAL},
 	}
 	flagWorkDir = &cli.Flag{
-		Name:           FLAG_WORK_DIR,
-		TakesValue:     true,
-		RequiresValue:  true,
-		HelpCategories: []string{CATEGORY_OPTIONAL},
+		Name:            FLAG_WORK_DIR,
+		TakesValue:      true,
+		RequiresValue:   true,
+		PostParseFunc:   cli.SetConfigValue(CONFIG_WORK_DIR),
+		HelpDefault:     cli.GetConfigDefault(CONFIG_WORK_DIR),
+		HelpValueName:   "WORK_DIR",
+		HelpDescription: "Working directory",
+		HelpCategories:  []string{CATEGORY_PATHS},
 	}
 	flagLogsDir = &cli.Flag{
-		Name:           FLAG_LOGS_DIR,
-		TakesValue:     true,
-		RequiresValue:  true,
-		HelpCategories: []string{CATEGORY_OPTIONAL},
+		Name:            FLAG_LOGS_DIR,
+		TakesValue:      true,
+		RequiresValue:   true,
+		PostParseFunc:   cli.SetConfigValue(CONFIG_LOGS_DIR),
+		HelpDefault:     cli.GetConfigDefault(CONFIG_LOGS_DIR),
+		HelpValueName:   "LOGS_DIR",
+		HelpDescription: "Logs directory",
+		HelpCategories:  []string{CATEGORY_PATHS},
 	}
 	flagConfigDir = &cli.Flag{
-		Name:           FLAG_CONFIG_DIR,
-		TakesValue:     true,
-		RequiresValue:  true,
-		HelpCategories: []string{CATEGORY_OPTIONAL},
+		Name:            FLAG_CONFIG_DIR,
+		TakesValue:      true,
+		RequiresValue:   true,
+		PostParseFunc:   cli.SetConfigValue(CONFIG_CONFIG_DIR),
+		HelpDefault:     cli.GetConfigDefault(CONFIG_CONFIG_DIR),
+		HelpValueName:   "CONFIG_DIR",
+		HelpDescription: "Config directory",
+		HelpCategories:  []string{CATEGORY_PATHS},
 	}
 
 	flagDomains = &cli.Flag{
@@ -77,18 +89,21 @@ var (
 		TakesValue:      true,
 		RequiresValue:   true,
 		AllowMultiple:   true,
+		PostParseFunc:   cli.SetConfigValue(CONFIG_DOMAINS),
+		HelpDefault:     cli.GetConfigDefault(CONFIG_DOMAINS),
 		HelpCategories:  []string{CMD_CERTIFICATES},
 		HelpValueName:   "DOMAIN",
 		HelpDescription: "Domain names to apply. For multiple domains you can use multiple -d flags or enter a comma separated list of domains as a parameter. The first domain provided will be the subject CN of the certificate, and all domains will be Subject Alternative Names on the certificate. The first domain will also be used in some software user interfaces and as the file paths for the certificate and related material unless otherwise specified or you already have a certificate with the same name. In the case of a name collision it will append a number like 0001 to the file path name.",
 	}
 	flagCertName = &cli.Flag{
-		Name:           FLAG_CERT_NAME,
-		TakesValue:     true,
-		RequiresValue:  true,
-		HelpCategories: []string{CMD_CERTIFICATES},
+		Name:          FLAG_CERT_NAME,
+		TakesValue:    true,
+		RequiresValue: true,
+		PostParseFunc: cli.SetConfigValue(CONFIG_CERT_NAME),
 		HelpDefault: func(*cli.Context) (string, error) {
 			return "the first provided domain or the name of an existing certificate on your system for the same domains", nil
 		},
+		HelpCategories:  []string{CMD_CERTIFICATES},
 		HelpValueName:   "CERTNAME",
 		HelpDescription: "Certificate name to apply. This name is used by Certbot for housekeeping and in file paths; it doesn't affect the content of the certificate itself. To see certificate names, run 'certbot certificates'. When creating a new certificate, specifies the new certificate's name.",
 	}
@@ -100,6 +115,6 @@ var (
 	flagForceInteractive = &cli.Flag{
 		Name:            FLAG_FORCE_INTERACTIVE,
 		HelpCategories:  []string{CMD_CERTONLY},
-		HelpDescription: "Force Certbot to be interactive even if it detects it's not being run in a terminal. This flag cannot be used with the renew subcommand.",
+		HelpDescription: "Force Certbot to be interactive even if it detects it's not being run in a terminal. This flag cannot be used with the renew command.",
 	}
 )

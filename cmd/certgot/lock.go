@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/eggsampler/certgot/log"
+
 	"github.com/gofrs/flock"
 )
 
@@ -15,6 +17,7 @@ var (
 func setupLocks(dirs []string) error {
 	for _, dir := range dirs {
 		lf := flock.New(filepath.Join(dir, ".certbot.lock"))
+		log.WithField("lockfile", lf.Path()).Trace("creating lock file")
 		locked, err := lf.TryLock()
 		if err != nil {
 			return fmt.Errorf("trying lock file %s - %v\n", lf.Path(), err)
@@ -27,9 +30,16 @@ func setupLocks(dirs []string) error {
 	return nil
 }
 
-func cleanupLocks() {
+func cleanupLocks() (errors []error) {
 	for _, lf := range lockFiles {
-		_ = lf.Unlock()
-		_ = os.Remove(lf.Path())
+		log.WithField("lockfile", lf.Path()).Trace("cleaning up lock file")
+		if err := lf.Unlock(); err != nil {
+			errors = append(errors, fmt.Errorf("error unlocking file %q: %w", lf.Path(), err))
+		}
+		if err := os.Remove(lf.Path()); err != nil {
+			errors = append(errors, fmt.Errorf("error removing file %q: %w", lf.Path(), err))
+		}
 	}
+
+	return
 }

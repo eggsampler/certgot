@@ -38,19 +38,21 @@ func main() {
 
 		Configs: cli.ConfigList{
 			cfgConfigFile,
+			cfgLogsDir,
+			cfgConfigDir,
+			cfgWorkDir,
 		},
 
 		Help: cli.HelpCategories{
-			categoryUsage,
-			categoryCommon,
-			categoryManageCerts,
-			categoryOptional,
+			catUsage,
+			catCommon,
+			catManageCerts,
+			catOptional,
+			catPaths,
 		},
 
-		PreRunFunc: func(ctx *cli.Context) error {
-			cfg := ctx.App.Configs.Get(CONFIG_FILE)
-			return ctx.App.LoadConfig(cfg.StringSlice(), !cfg.IsSet())
-		},
+		PreRunFunc:  doPreRun,
+		PostRunFunc: doPostRun,
 	}
 
 	// pass through panics if running debug
